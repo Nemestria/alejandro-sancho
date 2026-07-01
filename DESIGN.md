@@ -13,7 +13,7 @@ This experience should feel like a **prologue** to the portfolio, not a disconne
 
 - **Establishing shot:** normal FOV (~50°), computer roughly centered, slight elevation/angle (not a flat front-on shot — give it some perspective).
 - **Fly-in:** FOV widens progressively — by the time the camera "arrives" near the screen it should feel like a fisheye lens pressed close to glass (~90°+). This is the core "wide-angle" requirement from the brief.
-- **Chromatic aberration:** near-zero at rest, ramps up through the fly-in, settles to a low ambient amount once arrived (not zero — a constant faint aberration while "inside" the screen sells the CRT-proximity feeling without being distracting during password entry).
+- **Chromatic aberration:** near-zero at rest, ramps up through the fly-in, settles to a low ambient amount once arrived (not zero — a constant faint aberration while "inside" the screen sells the CRT-proximity feeling without being distracting during password entry). **As shipped:** this is currently a flat, page-wide toggleable filter (on/off, no flight-progress ramp) rather than the dynamic version described above — it also needed to cover the DOM/iframe, not just the 3D canvas, which is why it lives outside the camera-flight code. See ARCHITECTURE.md "Post-processing." Revisit the ramped version above if the static toggle ever feels too flat.
 - **No camera shake/wobble** during the flight — smooth eased interpolation only. Shake is reserved for the wrong-password feedback (see below), so it stays meaningful when it happens.
 
 ## Password Terminal (HTML overlay)
