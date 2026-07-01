@@ -79,6 +79,17 @@ export default function PasswordTerminal({
             boxSizing: "border-box",
           }}
         />
+        <div
+          style={{
+            fontFamily: MONO,
+            fontSize: 12,
+            color: `${ACCENT}99`,
+            marginTop: 10,
+            letterSpacing: 1,
+          }}
+        >
+          HINT: 1234
+        </div>
         {denied && (
           <div
             style={{
