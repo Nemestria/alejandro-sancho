@@ -56,6 +56,8 @@ export default function CameraRig({
   resetKey?: number;
 }) {
   const { camera, gl, scene } = useThree();
+  const phaseRef = useRef(phase);
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => {
     (window as unknown as { __scene: typeof scene }).__scene = scene;
   }, [scene]);
@@ -92,6 +94,7 @@ export default function CameraRig({
 
     function onPointerDown(e: PointerEvent) {
       if (e.button !== 0) return;
+      if (phaseRef.current === "arrived") return;
       isDragging.current = true;
       lastPointer.current = { x: e.clientX, y: e.clientY };
     }
@@ -104,7 +107,7 @@ export default function CameraRig({
         x: MathUtils.clamp(((e.clientX - rect.left) / rect.width) * 2 - 1, -1, 1),
         y: MathUtils.clamp(((e.clientY - rect.top) / rect.height) * 2 - 1, -1, 1),
       };
-      if (!isDragging.current) return;
+      if (!isDragging.current || phaseRef.current === "arrived") return;
       const dx = e.clientX - lastPointer.current.x;
       const dy = e.clientY - lastPointer.current.y;
       lastPointer.current = { x: e.clientX, y: e.clientY };
@@ -112,6 +115,7 @@ export default function CameraRig({
       dragPitch.current -= dy * DRAG_SENSITIVITY;
     }
     function onWheel(e: WheelEvent) {
+      if (phaseRef.current === "arrived") return;
       e.preventDefault();
       zoomOffset.current += e.deltaY * ZOOM_SENSITIVITY;
     }
@@ -119,12 +123,13 @@ export default function CameraRig({
     dom.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointermove", onPointerMove);
-    dom.addEventListener("wheel", onWheel, { passive: false });
+    // window-level wheel so drei <Html> overlays don't swallow the event
+    window.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       dom.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointermove", onPointerMove);
-      dom.removeEventListener("wheel", onWheel);
+      window.removeEventListener("wheel", onWheel);
     };
   }, [gl]);
 
