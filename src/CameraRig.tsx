@@ -82,12 +82,17 @@ export default function CameraRig({
   const edgeXSmooth = useRef(0);
   const edgeYSmooth = useRef(0);
 
-  useEffect(() => {
-    if (resetKey === 0) return;
+  const resetAll = () => {
     dragYaw.current = 0; dragPitch.current = 0; zoomOffset.current = 0;
     yawSmooth.current = 0; pitchSmooth.current = 0; zoomSmooth.current = 0;
     edgeXSmooth.current = 0; edgeYSmooth.current = 0;
-  }, [resetKey]);
+  };
+
+  useEffect(() => { if (resetKey > 0) resetAll(); }, [resetKey]);
+
+  // Auto-reset look/zoom when starting the fly-in so accumulated offsets
+  // don't displace the camera from the correct arrived position.
+  useEffect(() => { if (phase === "flying") resetAll(); }, [phase]);
 
   useEffect(() => {
     const dom = gl.domElement;
