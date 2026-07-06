@@ -63,7 +63,7 @@ Work through these in order. Each one should run (`pnpm dev`) and visibly demons
 **Goal:** production-ready.
 
 - [x] Loading state for assets — `src/LanguageGate.tsx` doubles as the loader, tracking real progress via drei's `useProgress()` (same loading manager `useGLTF` reports into), gating entry until both a language is picked and load hits 100%
-- [ ] Mobile/low-end fallback per the open decision in ARCHITECTURE.md (skip 3D entirely on detected low-end/no-WebGL, or accept desktop-only — confirm with Alejandro which)
+- [x] Mobile fallback — skips the 3D scene entirely on narrow viewports (`matchMedia` in `src/App.tsx`), redirects straight to the portfolio; `DesktopApp.tsx` is lazy-loaded so phones never download the GLBs/three.js bundle
 - [ ] Performance pass: check frame rate with the final model + effects on a mid-range machine, not just dev hardware
 - [ ] Swap procedural placeholder for Alejandro's real model, if/when delivered
 - [x] git init this repo, pushed to its own GitHub repo (`github.com/Nemestria/alejandro-sancho`, renamed from `3d-gateway` to match the Vercel project)
@@ -73,6 +73,6 @@ Work through these in order. Each one should run (`pnpm dev`) and visibly demons
 - [x] Vintage CRT look, page-wide: barrel/fisheye lens distortion (3D-canvas-only, `src/PostFX.tsx`) + chromatic aberration/scanlines/vignette (whole page incl. DOM and the embedded iframe, `src/CrtOverlay.tsx`), one settings-button toggle for both, persisted in `localStorage` — see ARCHITECTURE.md "Post-processing"
 - [x] Fixed a floor/grid z-fighting flicker by replacing the old two-plane floor+grid with a single textured `OfficeFloor` mesh — see ARCHITECTURE.md "Floor"
 
-**Still open:** mobile/low-end fallback, a real performance pass, swapping in Alejandro's real model, and the final domain/URL decision.
+**Still open:** a real performance pass, swapping in Alejandro's real model, and the final domain/URL decision.
 
 **Definition of done:** live URL, works on a phone (either the full experience or the agreed fallback), the click-to-portfolio flow is publicly testable.

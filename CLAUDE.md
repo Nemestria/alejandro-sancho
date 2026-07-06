@@ -18,7 +18,9 @@ pnpm build
 3. Read [DESIGN.md](DESIGN.md) — visual spec, what to reuse from the portfolio's design language
 
 ## Key Files
-- `src/App.tsx` — top-level phase state (`idle`/`flying`/`arrived`/`returning`), mounts `<Canvas>`, renders the screen-anchored password terminal and embedded portfolio iframe once unlocked, wraps everything in the CRT filter + settings toggle, gates the whole page behind `LanguageGate` until a language is chosen
+- `src/App.tsx` — thin shell: mobile detection (`matchMedia`, see "Mobile fallback" below) and `React.lazy`-loads `DesktopApp.tsx`. Keep this file free of any Scene/Canvas/GLTF imports — a static import here would defeat the lazy-load and download the 3D bundle on phones anyway
+- `src/DesktopApp.tsx` — the actual experience: top-level phase state (`idle`/`flying`/`arrived`/`returning`), mounts `<Canvas>`, renders the screen-anchored password terminal and embedded portfolio iframe once unlocked, wraps everything in the CRT filter + settings toggle, gates the whole page behind `LanguageGate` until a language is chosen
+- `src/portfolioUrl.ts` — the portfolio's base URL (`VITE_PORTFOLIO_URL` env, falls back to the live Vercel URL); split out of `DesktopApp.tsx` so `App.tsx`'s mobile-redirect path doesn't need to import the heavy module to read it
 - `src/Scene.tsx` — desk/computer GLB models, `OfficeFloor` (single-mesh procedural tile texture — do not reintroduce a separate grid plane, see ARCHITECTURE.md "Floor"), note prop, `WelcomeSign` (dismisses on first station-entry or after 15s), `ScreenPlane` (hover glow + Html anchor target)
 - `src/CameraRig.tsx` — locked-POV camera controls + fly-in animation
 - `src/screenAnchor.ts` — shared world-space position/normal/size for the monitor's screen-plane, used by both `CameraRig` (close-shot framing) and `Scene` (the anchor itself), so they can't drift apart
@@ -55,7 +57,7 @@ Checkpoints 0-4 done, Checkpoint 5 mostly done, all verified end-to-end in-brows
 - Language-select gate (EN/ES/CA, `src/LanguageGate.tsx`) that doubles as the asset-loading screen; all app UI text translated via `src/i18n.ts`
 - Vintage CRT look: 3D-only barrel/fisheye lens distortion (`src/PostFX.tsx`) + page-wide chromatic aberration/scanlines/vignette (`src/CrtOverlay.tsx`), one settings toggle for both, persisted in `localStorage`
 
-**Still open:** exit-transition flash on password success (Checkpoint 4), mobile/low-end fallback, a real performance pass, swapping the placeholder model for Alejandro's own, and the domain/URL decision — see CHECKPOINTS.md Checkpoint 5 for the full list.
+**Still open:** exit-transition flash on password success (Checkpoint 4), a real performance pass, swapping the placeholder model for Alejandro's own, and the domain/URL decision — see CHECKPOINTS.md Checkpoint 5 for the full list.
 
 ## Deploy
 This repo (`github.com/Nemestria/alejandro-sancho`, renamed from `3d-gateway`) is linked to a Vercel project of the same name (`nemestria-world/alejandro-sancho`, live at `alejandro-sancho.vercel.app`) that auto-deploys on every push to `master` — no manual `vercel --prod` needed. `vercel ls` (CLI already authenticated in this environment) shows recent deployments if you need to confirm a push went live.

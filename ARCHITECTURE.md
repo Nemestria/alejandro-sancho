@@ -110,7 +110,7 @@ The floor used to be two overlapping planes — a solid `meshStandardMaterial` p
 
 `src/LanguageGate.tsx` blocks entry until a language is picked, and doubles as the loading screen: it reads real progress via drei's `useProgress()` (the same `THREE.DefaultLoadingManager` `useGLTF` reports into), so "done loading" isn't faked. It only resolves (calling `onDone`, which sets `App.tsx`'s `lang` state) once *both* a language is chosen and load progress hits 100%.
 
-This is intentionally **not** wired to the embedded portfolio's own language — the portfolio has its own separate ES/EN splash screen (see `../mainRepo`) and the `?embed=1` query param it reads is unrelated to language. If unifying the two languages is wanted later, that'd mean passing the chosen `Lang` through as a URL param the portfolio reads on load — not yet done, would need coordinating with whatever the portfolio project decides its own embed-mode param scheme looks like.
+**Now wired to the embedded portfolio's language.** The chosen `Lang` is passed as `?lang=es|en|ca` on the iframe `src` (see `portfolioUrl()` in `src/App.tsx`) — the portfolio's `App.tsx` reads it (`URL_LANG`) and uses it as the initial language, skipping its own splash language-picker step. localStorage can't carry this across origins (gateway and portfolio are separate Vercel deployments with separate storage), so the URL param is the only inheritance channel; if no `lang` param is present (portfolio visited directly, not through the gateway), it falls back to its own remembered choice or the language-select splash as before.
 
 ## Password terminal
 
@@ -137,7 +137,7 @@ It renders as drei's `<Html>` in billboard mode (plain CSS text, `Boldonse` from
 
 1. ~~Model source~~ — resolved, see above.
 2. ~~The password itself~~ — resolved: `1234`, justified in-scene by the note prop above (deliberately simple/jokey rather than a "real" secret — matches "not real security").
-3. **Mobile fallback** — WebGL performance on phones varies a lot. Recommended default: detect low-end/no-WebGL and skip straight to the password screen (no 3D flight) rather than forcing everyone through it. Confirm this is acceptable, or whether mobile should just be deprioritized entirely (desktop-only gate, like the portfolio itself targets ~1024×768). **Still open.**
+3. ~~Mobile fallback~~ — resolved: a `matchMedia("(max-width: 768px)")` check in `src/App.tsx` skips the 3D experience entirely on phones and does a real `window.location.replace()` straight to the portfolio (no 3D flight, no password gate, no in-screen iframe — there's no monitor screen-plane to embed into if the scene never mounts). `DesktopApp.tsx` (the 3D experience, GLB models, password terminal, etc.) is `React.lazy`-loaded from a separate module so mobile visitors never even download it — a static top-level import would still trigger `Scene.tsx`'s module-level `useGLTF.preload(...)` regardless of whether it renders.
 4. **Domain/URL wiring** — redirect target is currently the Vercel preview URL, now embedded via iframe rather than full navigation (see "How they connect" above); decide later if a custom domain unifies both projects. **Still open.**
 5. ~~Loading state~~ — resolved: `LanguageGate` doubles as the loading screen, see "Internationalization" above.
-6. ~~Language(s)~~ — resolved: English/Spanish/Catalan via `src/i18n.ts`, see "Internationalization" above. Not synced with the embedded portfolio's own separate language choice — still open if unifying that is wanted.
+6. ~~Language(s)~~ — resolved: English/Spanish/Catalan via `src/i18n.ts`, see "Internationalization" above. Also now synced with the embedded portfolio via the `?lang=` URL param.
