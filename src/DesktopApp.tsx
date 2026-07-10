@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Scene from "./Scene";
 import CameraRig, { type FlightPhase } from "./CameraRig";
 import PasswordTerminal from "./PasswordTerminal";
+import ScreenFlash from "./ScreenFlash";
 import LanguageGate from "./LanguageGate";
 import PostFX from "./PostFX";
 import CrtOverlay from "./CrtOverlay";
@@ -88,6 +89,8 @@ export default function DesktopApp() {
   });
   const [showHelp, setShowHelp] = useState(false);
   const [camResetKey, setCamResetKey] = useState(0);
+  // Checkpoint 4's "exit transition on success" — see ScreenFlash.tsx.
+  const [flashActive, setFlashActive] = useState(false);
   // Vintage CRT/wide-lens post-processing (PostFX.tsx), toggleable from a
   // settings button — persisted so the choice survives a reload.
   const [fxEnabled, setFxEnabled] = useState(
@@ -120,9 +123,12 @@ export default function DesktopApp() {
   // visible around it. See ARCHITECTURE.md "How they connect".
   const screenContent =
     phase === "arrived" && !unlocked ? (
-      <PasswordTerminal t={t} onSuccess={() => setUnlocked(true)} />
+      <PasswordTerminal t={t} onSuccess={() => { setUnlocked(true); setFlashActive(true); }} />
     ) : unlocked ? (
-      <PortfolioFrame lang={lang!} />
+      <div style={{ position: "relative", width: "100%", height: "100%" }}>
+        <PortfolioFrame lang={lang!} />
+        {flashActive && <ScreenFlash onDone={() => setFlashActive(false)} />}
+      </div>
     ) : null;
 
   return (
