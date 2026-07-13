@@ -10,6 +10,8 @@ import CrtOverlay from "./CrtOverlay";
 import { translations, type Lang } from "./i18n";
 import { PORTFOLIO_BASE_URL } from "./portfolioUrl";
 import type { StationId } from "./stations";
+import { ARCADE_LABS } from "./arcadeLabs";
+import ArcadeMenuScene from "./ArcadeMenuScene";
 
 const FX_STORAGE_KEY = "3d-gateway-fx-enabled";
 
@@ -96,6 +98,26 @@ export default function DesktopApp() {
   const [camResetKey, setCamResetKey] = useState(0);
   // Checkpoint 4's "exit transition on success" — see ScreenFlash.tsx.
   const [flashActive, setFlashActive] = useState(false);
+  // Arcade station state: screen powers on when the coin lands (Scene.tsx's
+  // Arcade drives the animation and calls onCoinInserted), labIndex is the
+  // menu selection, activeLab the confirmed lab (renders the placeholder
+  // overlay). labIndexRef mirrors labIndex so the keydown handler can read
+  // the current value without re-subscribing every keypress.
+  const [arcadeScreenOn, setArcadeScreenOn] = useState(false);
+  const [labIndex, setLabIndex] = useState(0);
+  const labIndexRef = useRef(0);
+  useEffect(() => { labIndexRef.current = labIndex; }, [labIndex]);
+  const [activeLab, setActiveLab] = useState<string | null>(null);
+
+  // Leaving a station resets it — next visit starts coin-first/password-
+  // first again. arcadeScreenOn deliberately survives until onReturned:
+  // resetting it here would switch the camera's target shot (close →
+  // approach) at the very moment the return tween starts, causing a snap.
+  const leaveStation = () => {
+    setUnlocked(false);
+    setActiveLab(null);
+    setPhase("returning");
+  };
   // Vintage CRT/wide-lens post-processing (PostFX.tsx), toggleable from a
   // settings button — persisted so the choice survives a reload.
   const [fxEnabled, setFxEnabled] = useState(
@@ -109,8 +131,10 @@ export default function DesktopApp() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (showHelp) { setShowHelp(false); return; }
+        // Peel back one layer at a time: lab overlay first, then station.
+        if (activeLab) { setActiveLab(null); return; }
         if (phase === "arrived" || phase === "flying") {
-          setUnlocked(false); setPhase("returning");
+          leaveStation();
         } else {
           setShowHelp(v => !v);
         }
@@ -118,7 +142,30 @@ export default function DesktopApp() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, showHelp]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, showHelp, activeLab]);
+
+  // Arcade menu navigation — only while parked at the powered-on arcade
+  // with no lab overlay open, so the arrows never leak into other states.
+  const arcadeMenuActive =
+    phase === "arrived" && activeStation === "arcade" && arcadeScreenOn && !activeLab;
+
+  useEffect(() => {
+    if (!arcadeMenuActive) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setLabIndex((i) => Math.max(0, i - 1));
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setLabIndex((i) => Math.min(ARCADE_LABS.length - 1, i + 1));
+      } else if (e.key === "Enter") {
+        setActiveLab(ARCADE_LABS[labIndexRef.current].id);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [arcadeMenuActive]);
 
   const t = translations[lang ?? "en"];
 
@@ -161,26 +208,37 @@ export default function DesktopApp() {
               screenContent={screenContent}
               welcomeText={t.welcome}
               showWelcome={lang !== null}
+              arcadeArrived={phase === "arrived" && activeStation === "arcade"}
+              arcadeScreenOn={arcadeScreenOn}
+              onCoinInserted={() => setArcadeScreenOn(true)}
+              arcadeScreenContent={
+                <ArcadeMenuScene labs={ARCADE_LABS} selectedIndex={labIndex} menuHint={t.arcade.menuHint} />
+              }
             />
             <CameraRig
               phase={phase}
               station={activeStation}
+              stationZoomed={activeStation === "arcade" ? arcadeScreenOn : true}
               onArrived={() => setPhase("arrived")}
-              onReturned={() => { setPhase("idle"); setActiveStation(null); }}
+              onReturned={() => {
+                setPhase("idle");
+                setActiveStation(null);
+                setArcadeScreenOn(false);
+                setLabIndex(0);
+              }}
               resetKey={camResetKey}
             />
           </Suspense>
-          <PostFX enabled={fxEnabled} atScreen={phase === "arrived"} />
+          <PostFX
+            enabled={fxEnabled}
+            atScreen={phase === "arrived"}
+            flat={phase === "arrived" && activeStation === "arcade"}
+          />
         </Canvas>
 
         {phase !== "idle" && phase !== "returning" && (
           <button
-            onClick={() => {
-              // Going back always resets the station — walking up to the
-              // computer again means entering the password again, per design.
-              setUnlocked(false);
-              setPhase("returning");
-            }}
+            onClick={leaveStation}
             style={{
               position: "absolute",
               top: 16,
@@ -215,6 +273,52 @@ export default function DesktopApp() {
         </div>
 
         {!lang && <LanguageGate onDone={setLang} />}
+
+        {/* INSERT COIN prompt — parked at the arcade, screen still off */}
+        {phase === "arrived" && activeStation === "arcade" && !arcadeScreenOn && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 48,
+              left: "50%",
+              transform: "translateX(-50%)",
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: 15,
+              color: "#f2bfe9",
+              letterSpacing: 3,
+              pointerEvents: "none",
+              userSelect: "none",
+              animation: "insert-coin-blink 1.1s steps(1, end) infinite",
+            }}
+          >
+            {t.arcade.insertCoin}
+            <style>{`@keyframes insert-coin-blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.15; } }`}</style>
+          </div>
+        )}
+
+        {/* Lab placeholder overlay — a confirmed menu selection lands here
+            until real per-lab pages exist. Same state-gated pattern as the
+            controls overlay below. */}
+        {activeLab && (
+          <div
+            onClick={() => setActiveLab(null)}
+            style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.75)", zIndex: 60 }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ fontFamily: "monospace", color: "#f2bfe9", border: "1px solid rgba(242,191,233,0.4)", background: "rgba(15,0,12,0.9)", padding: "42px 56px", maxWidth: 480, textAlign: "center", letterSpacing: 1 }}
+            >
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 15, marginBottom: 20, letterSpacing: 2 }}>
+                {ARCADE_LABS.find((l) => l.id === activeLab)?.title ?? activeLab}
+              </div>
+              <div style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(242,191,233,0.75)", marginBottom: 24 }}>
+                {ARCADE_LABS.find((l) => l.id === activeLab)?.description}
+              </div>
+              <div style={{ fontSize: 14, letterSpacing: 3, marginBottom: 18 }}>— {t.arcade.labComingSoon} —</div>
+              <div style={{ fontSize: 11, color: "rgba(242,191,233,0.4)" }}>{t.arcade.labBackHint}</div>
+            </div>
+          </div>
+        )}
 
         {/* Subtle ESC hint — always visible in idle, fades when not needed */}
         {lang && phase === "idle" && !showHelp && (

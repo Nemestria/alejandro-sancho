@@ -1,13 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useGLTF, Html, Text, Billboard } from "@react-three/drei";
-import { Box3, CanvasTexture, Object3D, RepeatWrapping, Vector3, type Group, type Mesh } from "three";
-import { useThree, type ThreeEvent } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useGLTF, Html, Text, Billboard, RenderTexture } from "@react-three/drei";
+import {
+  Box3, CanvasTexture, DataTexture, Euler, MathUtils, MeshToonMaterial,
+  NearestFilter, Object3D, RedFormat, RepeatWrapping, Vector3,
+  type Group, type Material, type Mesh,
+} from "three";
+import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import type { FlightPhase } from "./CameraRig";
 import {
   SCREEN_WORLD_POSITION,
   SCREEN_WORLD_ROTATION_Y,
   SCREEN_WORLD_SIZE,
 } from "./screenAnchor";
+import { createArcadeScreenMaterial } from "./arcadeScreenMaterial";
 
 // CSS width of the billboard-mode Html div; distanceFactor (computed in
 // ScreenPlane, per canvas size) scales it to the plane's actual world size.
@@ -49,8 +54,12 @@ function Note() {
 // @import (see index.css), exactly how the rest of this app's text
 // (PasswordTerminal, LanguageGate) already gets its fonts.
 function WelcomeSign({ text }: { text: string }) {
+  // World position picked so it projects onto the RIGHT side of the
+  // establishing shot (camera (4,3,6) → (0,1.2,0)) at roughly the same
+  // camera distance as its old spot (apparent size unchanged) — the old
+  // left-side position now collides visually with the arcade cabinet.
   return (
-    <Billboard position={[-2.6, 1.8, 2.4]}>
+    <Billboard position={[2.3, 1.9, -1.2]}>
       <Html center distanceFactor={8} style={{ pointerEvents: "none" }}>
         <div
           style={{
@@ -234,16 +243,86 @@ function ArcadeSpot() {
   );
 }
 
+// Duration of the coin's flight into the slot, seconds.
+const COIN_FLIGHT = 0.9;
+
+// Physical-controls cosmetics: how far the joystick tips (radians) and which
+// key each face button answers to. The controls mirror the same keys that
+// drive the menu (DesktopApp owns the actual input) — this is feedback only.
+const JOY_TILT = 0.3;
+const BUTTON_NODES = ["A_button", "B_button", "X_button", "Y_button"] as const;
+const BUTTON_KEY = {
+  A_button: "a", B_button: "b", X_button: "x", Y_button: "y",
+} as const;
+
+function easeCoin(t: number) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
 function Arcade({
   onClick,
   onHoverChange,
   interactive,
+  atStation,
+  screenOn,
+  onCoinInserted,
+  screenChildren,
 }: {
   onClick: (e: ThreeEvent<MouseEvent>) => void;
   onHoverChange: (hovered: boolean) => void;
   interactive: boolean;
+  // True while the camera is parked at this station ("arrived" + arcade) —
+  // gates the coin-slot interaction the same way `interactive` gates the
+  // station-select click.
+  atStation: boolean;
+  screenOn: boolean;
+  onCoinInserted: () => void;
+  // Rendered inside the screen's RenderTexture portal (the menu scene) —
+  // content lives in DesktopApp so selection state can drive navigation.
+  screenChildren?: ReactNode;
 }) {
-  const { scene } = useGLTF("/ArcadeFolio.glb") as unknown as ArcadeNodes;
+  const { scene, nodes } = useGLTF("/ArcadeFolio.glb") as unknown as ArcadeNodes;
+
+  // Toon look for the whole cabinet, per direction. A 3-step gradient map
+  // gives the classic hard-banded cel shading (without one, MeshToonMaterial
+  // is a flat two-tone). The model's coloring lives in vertex colors (the
+  // GLB's shared material is otherwise default), so vertexColors carries
+  // straight over.
+  const gradientMap = useMemo(() => {
+    const tex = new DataTexture(new Uint8Array([90, 165, 235]), 3, 1, RedFormat);
+    tex.minFilter = NearestFilter;
+    tex.magFilter = NearestFilter;
+    tex.needsUpdate = true;
+    return tex;
+  }, []);
+
+  // The coin slot's own toon material instance, for the "click me" pulse —
+  // emissive on the material itself, NOT a light in front of it (a light
+  // washed the whole control panel out, see git history).
+  const slotMatRef = useRef<MeshToonMaterial | null>(null);
+
+  useEffect(() => {
+    const swapped: Array<[Mesh, Material | Material[]]> = [];
+    scene.traverse((o) => {
+      const m = o as Mesh;
+      if (!m.isMesh) return;
+      swapped.push([m, m.material]);
+      const toon = new MeshToonMaterial({ vertexColors: true, gradientMap });
+      if (m.name === "CoinInserter") {
+        toon.emissive.set("#f2bfe9");
+        toon.emissiveIntensity = 0;
+        slotMatRef.current = toon;
+      }
+      m.material = toon;
+    });
+    return () => {
+      slotMatRef.current = null;
+      swapped.forEach(([m, original]) => {
+        (m.material as Material).dispose();
+        m.material = original;
+      });
+    };
+  }, [scene, gradientMap]);
 
   // Same auto-fit-by-bounding-box approach as Computer() below — scale to a
   // target height, then position so the model's own base sits on the floor
@@ -266,6 +345,192 @@ function Arcade({
     };
   }, [scene]);
 
+  // Coin-slot center in group-local space (= the loader scene's root
+  // space, since CoinInserter is a direct child of it) — computed from the
+  // geometry's own bounds run through the node's local matrix, no hand-done
+  // rotation math. The cabinet's front is group-local -Z (see
+  // ARCADE_ROTATION_Y), so the coin approaches from -Z.
+  const coinPath = useMemo(() => {
+    const m = nodes.CoinInserter;
+    m.geometry.computeBoundingBox();
+    const bb = m.geometry.boundingBox!.clone();
+    m.updateMatrix();
+    bb.applyMatrix4(m.matrix);
+    const slot = new Vector3();
+    bb.getCenter(slot);
+    return {
+      slot,
+      start: slot.clone().add(new Vector3(0, 0.4, -0.8)),
+      end: slot.clone().add(new Vector3(0, 0.02, -0.02)),
+    };
+  }, [nodes]);
+
+  // Physical controls (joystick + face buttons) reacting to the same keys
+  // the menu listens for. Key state lives in a ref fed by plain window
+  // listeners (active only while parked here); the meshes' cached
+  // transforms are damped toward it per-frame — same convention as
+  // CameraRig, no tween library. Mutating the cached nodes is safe for the
+  // same reason ArcadeScreen.visible is: the scene renders as one
+  // primitive, and the base transforms are restored on unmount.
+  const keysDown = useRef({
+    up: false, down: false, left: false, right: false,
+    a: false, b: false, x: false, y: false,
+  });
+  const joyTilt = useRef({ x: 0, z: 0 });
+  const joyEuler = useMemo(() => new Euler(), []);
+  const btnPress = useRef({ A_button: 0, B_button: 0, X_button: 0, Y_button: 0 });
+
+  const controlsBase = useMemo(() => {
+    // Press travel derived from each button's own bounds (in the group's
+    // space, via the node matrix) so it scales with the model instead of a
+    // hand-picked world constant.
+    const travel = (m: Mesh) => {
+      m.geometry.computeBoundingBox();
+      const bb = m.geometry.boundingBox!.clone();
+      m.updateMatrix();
+      bb.applyMatrix4(m.matrix);
+      return (bb.max.y - bb.min.y) * 0.45;
+    };
+    return {
+      joyQuat: nodes.Joystick.quaternion.clone(),
+      buttons: BUTTON_NODES.map((name) => ({
+        name,
+        baseY: nodes[name].position.y,
+        travel: travel(nodes[name]),
+      })),
+    };
+  }, [nodes]);
+
+  useEffect(() => {
+    if (!atStation) return;
+    const map: Record<string, keyof typeof keysDown.current> = {
+      arrowup: "up", arrowdown: "down", arrowleft: "left", arrowright: "right",
+      a: "a", b: "b", x: "x", y: "y",
+    };
+    const set = (e: KeyboardEvent, v: boolean) => {
+      const k = map[e.key.toLowerCase()];
+      if (k) keysDown.current[k] = v;
+    };
+    const down = (e: KeyboardEvent) => set(e, true);
+    const up = (e: KeyboardEvent) => set(e, false);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      // Release everything so the stick/buttons ease back to rest.
+      (Object.keys(keysDown.current) as Array<keyof typeof keysDown.current>)
+        .forEach((k) => { keysDown.current[k] = false; });
+    };
+  }, [atStation]);
+
+  useEffect(() => () => {
+    nodes.Joystick.quaternion.copy(controlsBase.joyQuat);
+    controlsBase.buttons.forEach(({ name, baseY }) => {
+      nodes[name].position.y = baseY;
+    });
+  }, [nodes, controlsBase]);
+
+  // The live screen's geometry, with UVs REWRITTEN from the vertex
+  // positions instead of the authored ones. The GLB's UV island for this
+  // face is rotated, mirrored AND smaller than the full 0..1 square, which
+  // showed the menu sideways/backwards/cropped — and counter-transforming
+  // the texture matrix (tried first) still left it wrong. A flat planar
+  // projection along the face is deterministic: viewer-right on the
+  // cabinet is mesh-local -X and viewer-up is mesh-local -Z (the node's
+  // 90° X-rotation maps world +Y to local -Z), so u/v run exactly 0..1
+  // across the visible face. The box's thin side faces get edge-smeared
+  // texels — invisible at the bezel, acceptable.
+  const screenGeom = useMemo(() => {
+    const g = nodes.ArcadeScreen.geometry.clone();
+    g.computeBoundingBox();
+    const bb = g.boundingBox!;
+    const pos = g.attributes.position;
+    const uv = g.attributes.uv;
+    const xRange = bb.max.x - bb.min.x;
+    const zRange = bb.max.z - bb.min.z;
+    for (let i = 0; i < pos.count; i++) {
+      uv.setXY(
+        i,
+        (bb.max.x - pos.getX(i)) / xRange,
+        (bb.max.z - pos.getZ(i)) / zRange,
+      );
+    }
+    uv.needsUpdate = true;
+    return g;
+  }, [nodes]);
+
+  // The display shader for the live screen (pixelation/dither/vignette/
+  // scanlines — see arcadeScreenMaterial.ts). One instance for the
+  // component's lifetime; the RenderTexture attaches into uniforms.map.
+  const screenMat = useMemo(() => createArcadeScreenMaterial(), []);
+  useEffect(() => () => screenMat.dispose(), [screenMat]);
+
+  const [coinFlying, setCoinFlying] = useState(false);
+  const coinT = useRef(0);
+  const coinRef = useRef<Mesh>(null);
+
+  // "Click here" affordances while waiting for the coin: a bobbing arrow
+  // over the slot + a soft emissive pulse on the slot's own material (see
+  // slotMatRef), plus a hover glow on the screen mirroring the computer's
+  // ScreenPlane treatment. Animated via refs, not state — they tick every
+  // frame.
+  const [slotHover, setSlotHover] = useState(false);
+  const [idleHover, setIdleHover] = useState(false);
+  const arrowRef = useRef<Mesh>(null);
+  const awaitingCoin = atStation && !screenOn && !coinFlying;
+
+  useFrame((state, delta) => {
+    const tm = state.clock.elapsedTime;
+    screenMat.uniforms.time.value = tm;
+    if (arrowRef.current) {
+      arrowRef.current.position.y = coinPath.slot.y + 0.55 + Math.sin(tm * 3) * 0.07;
+    }
+    if (slotMatRef.current) {
+      slotMatRef.current.emissiveIntensity = awaitingCoin
+        ? (slotHover ? 0.5 : 0.16 + Math.sin(tm * 3) * 0.1)
+        : 0;
+    }
+    // Joystick + face buttons chase the held keys. Tilt is a group-space
+    // rotation premultiplied onto the node's authored orientation: the
+    // cabinet front is group -Z (player side) and viewer-right is group -X,
+    // so +X rotation tips the stick away from the player (up arrow) and
+    // +Z rotation tips it to the player's right (right arrow).
+    const k = keysDown.current;
+    joyTilt.current.x = MathUtils.damp(
+      joyTilt.current.x, (k.up ? JOY_TILT : 0) + (k.down ? -JOY_TILT : 0), 14, delta);
+    joyTilt.current.z = MathUtils.damp(
+      joyTilt.current.z, (k.right ? JOY_TILT : 0) + (k.left ? -JOY_TILT : 0), 14, delta);
+    nodes.Joystick.quaternion
+      .setFromEuler(joyEuler.set(joyTilt.current.x, 0, joyTilt.current.z))
+      .multiply(controlsBase.joyQuat);
+    controlsBase.buttons.forEach(({ name, baseY, travel }) => {
+      btnPress.current[name] = MathUtils.damp(
+        btnPress.current[name], k[BUTTON_KEY[name]] ? 1 : 0, 22, delta);
+      nodes[name].position.y = baseY - btnPress.current[name] * travel;
+    });
+    if (!coinFlying || !coinRef.current) return;
+    coinT.current = Math.min(1, coinT.current + delta / COIN_FLIGHT);
+    const t = easeCoin(coinT.current);
+    const p = new Vector3().lerpVectors(coinPath.start, coinPath.end, t);
+    p.y += Math.sin(t * Math.PI) * 0.18; // small arc, like a tossed token
+    coinRef.current.position.copy(p);
+    coinRef.current.rotation.set(t * Math.PI * 3, 0, Math.PI / 2);
+    if (coinT.current >= 1) {
+      setCoinFlying(false);
+      onCoinInserted();
+    }
+  });
+
+  // While the screen is on, the modeled (dark) screen mesh hides so the
+  // RenderTexture overlay below is the only surface at that spot — shared
+  // geometry at identical transform would z-fight otherwise. Mutating
+  // `visible` on the cached node is deliberate and reverted on power-off.
+  useEffect(() => {
+    nodes.ArcadeScreen.visible = !screenOn;
+    return () => { nodes.ArcadeScreen.visible = true; };
+  }, [screenOn, nodes]);
+
   return (
     <group
       scale={scale}
@@ -273,29 +538,112 @@ function Arcade({
       rotation={[0, ARCADE_ROTATION_Y, 0]}
       onClick={(e: ThreeEvent<MouseEvent>) => {
         e.stopPropagation();
-        onClick(e);
+        if (atStation) {
+          // Parked at the cabinet: only the coin slot reacts (r3f events
+          // bubble from the hit submesh; e.object.name discriminates).
+          if (e.object.name === "CoinInserter" && !screenOn && !coinFlying) {
+            coinT.current = 0;
+            setCoinFlying(true);
+          }
+          return;
+        }
+        if (interactive) onClick(e);
       }}
-      onPointerOver={() => {
+      onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+        if (atStation) {
+          if (e.object.name === "CoinInserter" && !screenOn) {
+            document.body.style.cursor = "pointer";
+            setSlotHover(true);
+          }
+          return;
+        }
         if (!interactive) return;
         document.body.style.cursor = "pointer";
+        setIdleHover(true);
         onHoverChange(true);
       }}
       onPointerOut={() => {
-        if (!interactive) return;
         document.body.style.cursor = "auto";
-        onHoverChange(false);
+        setSlotHover(false);
+        setIdleHover(false);
+        if (interactive) onHoverChange(false);
       }}
     >
       {/* The whole loader scene as ONE primitive, like Computer() — never
           destructure nodes into separate <primitive>s here: that reparents
           them out of drei's cached loader scene, so any remount (HMR,
           suspense retry) measures an empty scene → NaN placement →
-          invisible cabinet. Per-submesh interactions (coin slot, buttons)
-          instead use r3f event bubbling on this group and discriminate via
-          e.object.name ("CoinInserter", "A_button", ...) in later phases;
-          the ArcadeScreen mesh's material swap mutates
-          nodes.ArcadeScreen.material in place rather than re-nesting JSX. */}
+          invisible cabinet. Per-submesh interactions use r3f event
+          bubbling on this group + e.object.name instead. */}
       <primitive object={scene} />
+
+      {/* The coin, only while mid-flight */}
+      {coinFlying && (
+        <mesh ref={coinRef} position={coinPath.start}>
+          <cylinderGeometry args={[0.11, 0.11, 0.03, 24]} />
+          <meshStandardMaterial color="#d9b13b" metalness={0.85} roughness={0.25} emissive="#5a4410" emissiveIntensity={0.4} />
+        </mesh>
+      )}
+
+      {/* Coin-slot affordance: bobbing "insert here" arrow (the slot itself
+          pulses via its material's emissive, see slotMatRef), only while
+          parked at the cabinet waiting for the coin */}
+      {awaitingCoin && (
+        <mesh
+          ref={arrowRef}
+          position={[coinPath.slot.x, coinPath.slot.y + 0.55, coinPath.slot.z - 0.12]}
+          rotation={[Math.PI, 0, 0]}
+        >
+          <coneGeometry args={[0.09, 0.2, 12]} />
+          <meshBasicMaterial color="#f2bfe9" transparent opacity={0.95} depthWrite={false} />
+        </mesh>
+      )}
+
+      {/* Powered-off screen tint — faint always so the glass reads as a
+          screen, brighter on hover while the cabinet is selectable (same
+          affordance the computer's ScreenPlane gives). polygonOffset pulls
+          it in front of the identically-placed modeled screen so the two
+          coplanar surfaces don't z-fight. */}
+      {!screenOn && (
+        <mesh
+          geometry={nodes.ArcadeScreen.geometry}
+          position={nodes.ArcadeScreen.position}
+          quaternion={nodes.ArcadeScreen.quaternion}
+        >
+          <meshBasicMaterial
+            color="#f2bfe9"
+            transparent
+            opacity={idleHover && interactive ? 0.3 : 0.07}
+            depthWrite={false}
+            polygonOffset
+            polygonOffsetFactor={-2}
+          />
+        </mesh>
+      )}
+
+      {/* The live screen — same geometry as the modeled ArcadeScreen at the
+          same transform, wearing the RenderTexture (a genuine second scene
+          rendered to an off-screen target every frame — the technique from
+          the basement.studio reference, via drei's built-in). Mounted only
+          while powered on, so the extra render pass costs nothing until a
+          coin goes in. */}
+      {screenOn && screenChildren && (
+        <mesh
+          geometry={screenGeom}
+          position={nodes.ArcadeScreen.position}
+          quaternion={nodes.ArcadeScreen.quaternion}
+        >
+          {/* Custom display shader instead of a stock material — the
+              RenderTexture's live output wires into its map uniform via
+              r3f's dashed attach path (the declarative equivalent of the
+              reference computer.tsx's onMapTexture + useEffect). */}
+          <primitive object={screenMat} attach="material">
+            <RenderTexture attach="uniforms-map-value" width={1024} height={1024} samples={4}>
+              {screenChildren}
+            </RenderTexture>
+          </primitive>
+        </mesh>
+      )}
     </group>
   );
 }
@@ -387,6 +735,10 @@ export default function Scene({
   screenContent,
   welcomeText,
   showWelcome,
+  arcadeArrived,
+  arcadeScreenOn,
+  onCoinInserted,
+  arcadeScreenContent,
 }: {
   phase: FlightPhase;
   onComputerClick: () => void;
@@ -396,6 +748,10 @@ export default function Scene({
   // False while the language-select gate is still up (App.tsx) — the sign
   // shouldn't appear until the visitor has actually entered the room.
   showWelcome: boolean;
+  arcadeArrived: boolean;
+  arcadeScreenOn: boolean;
+  onCoinInserted: () => void;
+  arcadeScreenContent?: ReactNode;
 }) {
   const [hovered, setHovered] = useState(false);
   // Hover-glow only makes sense while picking a station from the general
@@ -461,7 +817,15 @@ export default function Scene({
         screenContent={screenContent}
         interactive={interactive}
       />
-      <Arcade onClick={handleArcadeClick} onHoverChange={() => {}} interactive={interactive} />
+      <Arcade
+        onClick={handleArcadeClick}
+        onHoverChange={() => {}}
+        interactive={interactive}
+        atStation={arcadeArrived}
+        screenOn={arcadeScreenOn}
+        onCoinInserted={onCoinInserted}
+        screenChildren={arcadeScreenContent}
+      />
     </>
   );
 }

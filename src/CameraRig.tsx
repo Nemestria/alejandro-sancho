@@ -43,9 +43,15 @@ function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+// Damping rate for the arrived-phase dolly between a station's approach
+// and close shots (e.g. arcade coin insert) — slower than EASE_LAMBDA on
+// purpose, it's a cinematic move, not input smoothing.
+const DOLLY_LAMBDA = 3;
+
 export default function CameraRig({
   phase,
   station,
+  stationZoomed = true,
   onArrived,
   onReturned,
   resetKey = 0,
@@ -54,6 +60,10 @@ export default function CameraRig({
   // Which station to fly toward — only read while phase isn't "idle"; null
   // is fine at idle since the established shot doesn't depend on it.
   station: StationId | null;
+  // False = hold the station's wider `approach` shot (if it defines one);
+  // flipping true dollies to the close shot. Stations without an approach
+  // shot ignore this entirely.
+  stationZoomed?: boolean;
   onArrived: () => void;
   onReturned: () => void;
   resetKey?: number;
@@ -84,6 +94,13 @@ export default function CameraRig({
   const zoomSmooth = useRef(0);
   const edgeXSmooth = useRef(0);
   const edgeYSmooth = useRef(0);
+
+  // Damped shot for the arrived phase — lets the base shot switch (approach
+  // → close on stationZoomed) glide instead of snapping. Outside "arrived"
+  // these mirror the phase tween exactly, so entering arrived is seamless.
+  const dollyEye = useRef(new Vector3().copy(ESTABLISHED_EYE));
+  const dollyTarget = useRef(new Vector3().copy(ESTABLISHED_TARGET));
+  const dollyFov = useRef(ESTABLISHED_FOV);
 
   const resetAll = () => {
     dragYaw.current = 0; dragPitch.current = 0; zoomOffset.current = 0;
@@ -154,10 +171,14 @@ export default function CameraRig({
     }
 
     // --- base eye/target/fov + clamp scale for this instant ---
+    // A station with an `approach` shot holds it until stationZoomed flips
+    // (e.g. the arcade waits for the coin) — the fly-in/return tweens also
+    // aim at whichever of the two is currently selected.
     const shot = station ? STATIONS[station] : null;
-    const closeEye = shot?.closeEye ?? ESTABLISHED_EYE;
-    const closeTarget = shot?.closeTarget ?? ESTABLISHED_TARGET;
-    const closeFov = shot?.closeFov ?? ESTABLISHED_FOV;
+    const useApproach = !!shot?.approach && !stationZoomed;
+    const closeEye = useApproach ? shot!.approach!.eye : shot?.closeEye ?? ESTABLISHED_EYE;
+    const closeTarget = useApproach ? shot!.approach!.target : shot?.closeTarget ?? ESTABLISHED_TARGET;
+    const closeFov = useApproach ? shot!.approach!.fov : shot?.closeFov ?? ESTABLISHED_FOV;
 
     let baseEye = ESTABLISHED_EYE;
     let baseTarget = ESTABLISHED_TARGET;
@@ -191,6 +212,21 @@ export default function CameraRig({
         else onReturned();
       }
     }
+
+    // --- arrived-phase dolly (approach ↔ close glide) ---
+    if (phase === "arrived") {
+      const k = 1 - Math.exp(-DOLLY_LAMBDA * delta);
+      dollyEye.current.lerp(baseEye, k);
+      dollyTarget.current.lerp(baseTarget, k);
+      dollyFov.current = MathUtils.damp(dollyFov.current, fov, DOLLY_LAMBDA, delta);
+    } else {
+      dollyEye.current.copy(baseEye);
+      dollyTarget.current.copy(baseTarget);
+      dollyFov.current = fov;
+    }
+    baseEye = dollyEye.current;
+    baseTarget = dollyTarget.current;
+    fov = dollyFov.current;
 
     // --- clamp accumulated look offsets to current (possibly tightening) range ---
     const yawClamp = BASE_YAW_CLAMP * clampScale;
