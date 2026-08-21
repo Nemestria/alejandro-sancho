@@ -12,6 +12,7 @@ import { PORTFOLIO_BASE_URL } from "./portfolioUrl";
 import type { StationId } from "./stations";
 import { ARCADE_LABS } from "./arcadeLabs";
 import ArcadeMenuScene from "./ArcadeMenuScene";
+import ScreenGlass from "./ScreenGlass";
 
 const FX_STORAGE_KEY = "3d-gateway-fx-enabled";
 
@@ -51,31 +52,33 @@ function PortfolioFrame({ lang }: { lang: Lang }) {
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        overflow: "hidden",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#000",
-      }}
-    >
-      <iframe
-        title="portfolio"
-        src={portfolioUrl(lang)}
+    <ScreenGlass tint="#bfe9ff">
+      <div
+        ref={containerRef}
         style={{
-          width: PORTFOLIO_DESKTOP_WIDTH,
-          height: PORTFOLIO_DESKTOP_HEIGHT,
-          border: "none",
-          transform: `scale(${scale})`,
-          transformOrigin: "center",
-          flexShrink: 0,
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#000",
         }}
-      />
-    </div>
+      >
+        <iframe
+          title="portfolio"
+          src={portfolioUrl(lang)}
+          style={{
+            width: PORTFOLIO_DESKTOP_WIDTH,
+            height: PORTFOLIO_DESKTOP_HEIGHT,
+            border: "none",
+            transform: `scale(${scale})`,
+            transformOrigin: "center",
+            flexShrink: 0,
+          }}
+        />
+      </div>
+    </ScreenGlass>
   );
 }
 
@@ -218,20 +221,21 @@ export default function DesktopApp() {
                 const lab = ARCADE_LABS.find((l) => l.id === activeLab);
                 if (!lab?.url) return undefined;
                 return (
-                  <div style={{ width: "100%", height: "100%", position: "relative", background: "#000" }}>
+                  <ScreenGlass tint="#f2bfe9">
                     <iframe
                       title={lab.title}
                       src={lab.url}
                       style={{ width: "100%", height: "100%", border: "none", display: "block" }}
                       allow="fullscreen"
                     />
+                    {/* Above the glass layers, so it stays clickable */}
                     <button
                       onClick={() => setActiveLab(null)}
-                      style={{ position: "absolute", top: 4, right: 4, fontFamily: "monospace", fontSize: 9, background: "rgba(15,0,12,0.85)", color: "#f2bfe9", border: "1px solid rgba(242,191,233,0.4)", padding: "2px 7px", cursor: "pointer", letterSpacing: 1 }}
+                      style={{ position: "absolute", top: 4, right: 4, zIndex: 2, fontFamily: "monospace", fontSize: 9, background: "rgba(15,0,12,0.85)", color: "#f2bfe9", border: "1px solid rgba(242,191,233,0.4)", padding: "2px 7px", cursor: "pointer", letterSpacing: 1 }}
                     >
                       ✕
                     </button>
-                  </div>
+                  </ScreenGlass>
                 );
               })()}
             />

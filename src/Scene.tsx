@@ -464,6 +464,16 @@ function Arcade({
   // The display shader for the live screen (pixelation/dither/vignette/
   // scanlines — see arcadeScreenMaterial.ts). One instance for the
   // component's lifetime; the RenderTexture attaches into uniforms.map.
+  // Geometry-space centre of the screen face. nodes.ArcadeScreen's own
+  // position is the authored mesh ORIGIN, which sits down at the cabinet's
+  // base (world y~0.04) rather than on the glass (world y~1.37) — anchoring
+  // anything to it puts the overlay at the cabinet's feet. The bounding-box
+  // centre is the real middle of the screen, so overlays hang off that.
+  const screenCenterLocal = useMemo(() => {
+    screenGeom.computeBoundingBox();
+    return screenGeom.boundingBox!.getCenter(new Vector3());
+  }, [screenGeom]);
+
   const screenMat = useMemo(() => createArcadeScreenMaterial(), []);
   useEffect(() => () => screenMat.dispose(), [screenMat]);
 
@@ -657,6 +667,7 @@ function Arcade({
           appears physically on the cabinet's screen when the camera arrives. */}
       {screenOn && labContent && (
         <group position={nodes.ArcadeScreen.position} quaternion={nodes.ArcadeScreen.quaternion}>
+         <group position={screenCenterLocal}>
           <Html
             center
             distanceFactor={arcadeDistanceFactor}
@@ -670,6 +681,7 @@ function Arcade({
           >
             {labContent}
           </Html>
+         </group>
         </group>
       )}
     </group>
