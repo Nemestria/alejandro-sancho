@@ -38,8 +38,15 @@ const COMPUTER: StationShot = {
 // Each stand-off was re-derived to keep the exact same framing at the new
 // fov (d_new = d_old * tan(fov_old/2) / tan(fov_new/2)), so only the
 // distortion changes, not what's in frame.
+// Close stand-off is set from the now-derived screen size (0.748 x 0.639m,
+// see arcadeScreenAnchor.ts) rather than the old placeholder's: at fov 50 the
+// visible height is 2*d*tan(25 deg), so d=0.95 puts the screen at ~68% of
+// frame height — big enough to read a site embedded on it, with enough
+// cabinet still around it to read as a physical machine. The previous 1.6
+// left it at ~43%, and was aimed at a guessed anchor ~0.3m off the real
+// screen, which is what pushed the glass out of frame entirely.
 const ARCADE: StationShot = {
-  closeEye: ARCADE_SCREEN_WORLD_POSITION.clone().addScaledVector(ARCADE_SCREEN_WORLD_NORMAL, 1.6),
+  closeEye: ARCADE_SCREEN_WORLD_POSITION.clone().addScaledVector(ARCADE_SCREEN_WORLD_NORMAL, 0.95),
   closeTarget: ARCADE_SCREEN_WORLD_POSITION.clone(),
   closeFov: 50,
   approach: {

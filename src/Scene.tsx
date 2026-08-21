@@ -13,10 +13,19 @@ import {
   SCREEN_WORLD_SIZE,
 } from "./screenAnchor";
 import { createArcadeScreenMaterial } from "./arcadeScreenMaterial";
+import {
+  ARCADE_SCREEN_WORLD_POSITION,
+  ARCADE_SCREEN_WORLD_ROTATION_Y,
+  ARCADE_SCREEN_WORLD_SIZE,
+} from "./arcadeScreenAnchor";
 
 // CSS width of the billboard-mode Html div; distanceFactor (computed in
 // ScreenPlane, per canvas size) scales it to the plane's actual world size.
 const HTML_WIDTH_PX = 300;
+// Same role for the arcade's screen. Smaller because that screen is smaller
+// in world units (0.748m vs the monitor's 1.12m), keeping roughly the same
+// CSS-px-per-metre density on both.
+const ARCADE_HTML_WIDTH_PX = 220;
 
 // Wireframe was used to hand-fit SCREEN_WORLD_SIZE/POSITION against the
 // monitor's actual bezel (see screenAnchor.ts) — dialed in now, off.
@@ -464,16 +473,6 @@ function Arcade({
   // The display shader for the live screen (pixelation/dither/vignette/
   // scanlines — see arcadeScreenMaterial.ts). One instance for the
   // component's lifetime; the RenderTexture attaches into uniforms.map.
-  // Geometry-space centre of the screen face. nodes.ArcadeScreen's own
-  // position is the authored mesh ORIGIN, which sits down at the cabinet's
-  // base (world y~0.04) rather than on the glass (world y~1.37) — anchoring
-  // anything to it puts the overlay at the cabinet's feet. The bounding-box
-  // centre is the real middle of the screen, so overlays hang off that.
-  const screenCenterLocal = useMemo(() => {
-    screenGeom.computeBoundingBox();
-    return screenGeom.boundingBox!.getCenter(new Vector3());
-  }, [screenGeom]);
-
   const screenMat = useMemo(() => createArcadeScreenMaterial(), []);
   useEffect(() => () => screenMat.dispose(), [screenMat]);
 
@@ -543,15 +542,6 @@ function Arcade({
     nodes.ArcadeScreen.visible = !screenOn && !labContent;
     return () => { nodes.ArcadeScreen.visible = true; };
   }, [screenOn, labContent, nodes]);
-
-  const canvasHeight = useThree((state) => state.size.height);
-  // Arcade screen is narrower than the computer screen; derive distanceFactor
-  // the same way as ScreenPlane: (worldWidth * canvasHeight) / htmlWidthPx.
-  const arcadeHtmlWidth = 280;
-  const arcadeDistanceFactor = useMemo(
-    () => (0.9 * canvasHeight) / arcadeHtmlWidth,
-    [canvasHeight],
-  );
 
   return (
     <group
@@ -663,27 +653,40 @@ function Arcade({
         </mesh>
       )}
 
-      {/* Lab iframe — Html pinned to the real screen mesh position so it
-          appears physically on the cabinet's screen when the camera arrives. */}
-      {screenOn && labContent && (
-        <group position={nodes.ArcadeScreen.position} quaternion={nodes.ArcadeScreen.quaternion}>
-         <group position={screenCenterLocal}>
-          <Html
-            center
-            distanceFactor={arcadeDistanceFactor}
-            style={{
-              width: arcadeHtmlWidth,
-              height: arcadeHtmlWidth * (0.7 / 0.9),
-              pointerEvents: "auto",
-              overflow: "hidden",
-              background: "#000",
-            }}
-          >
-            {labContent}
-          </Html>
-         </group>
-        </group>
-      )}
+    </group>
+  );
+}
+
+// The lab iframe's anchor. Deliberately a top-level world-space object rather
+// than a child of Arcade's group — same arrangement, and same reasoning, as
+// ScreenPlane for the computer monitor: the anchor constants in
+// arcadeScreenAnchor.ts are world-space, so nesting them under the cabinet's
+// position/rotation/scale would apply that transform twice.
+function ArcadeScreenHtml({ children }: { children: ReactNode }) {
+  const canvasHeight = useThree((state) => state.size.height);
+  // Same derivation as ScreenPlane's: solving "on-screen width == the plane's
+  // projected world width" leaves distanceFactor as
+  // (worldWidth * canvasHeightPx) / htmlWidthPx, free of camera distance/fov.
+  const distanceFactor = (ARCADE_SCREEN_WORLD_SIZE[0] * canvasHeight) / ARCADE_HTML_WIDTH_PX;
+
+  return (
+    <group
+      position={ARCADE_SCREEN_WORLD_POSITION}
+      rotation={[0, ARCADE_SCREEN_WORLD_ROTATION_Y, 0]}
+    >
+      <Html
+        center
+        distanceFactor={distanceFactor}
+        style={{
+          width: ARCADE_HTML_WIDTH_PX,
+          height: ARCADE_HTML_WIDTH_PX * (ARCADE_SCREEN_WORLD_SIZE[1] / ARCADE_SCREEN_WORLD_SIZE[0]),
+          pointerEvents: "auto",
+          overflow: "hidden",
+          background: "#000",
+        }}
+      >
+        {children}
+      </Html>
     </group>
   );
 }
@@ -867,8 +870,11 @@ export default function Scene({
         screenOn={arcadeScreenOn}
         onCoinInserted={onCoinInserted}
         screenChildren={arcadeScreenContent}
-          labContent={arcadeLabContent}
+        labContent={arcadeLabContent}
       />
+      {arcadeScreenOn && arcadeLabContent && (
+        <ArcadeScreenHtml>{arcadeLabContent}</ArcadeScreenHtml>
+      )}
     </>
   );
 }

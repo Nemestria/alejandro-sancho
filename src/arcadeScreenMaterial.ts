@@ -60,6 +60,10 @@ export function createArcadeScreenMaterial() {
     `,
     fragmentShader: /* glsl */ `
       precision highp float;
+      // GLSL ES 3.00 removed gl_FragColor — the output must be declared.
+      // Without this the program fails to link ("useProgram: program not
+      // valid") and the screen draws nothing at all.
+      out vec4 fragColor;
       in vec2 vUv;
       uniform sampler2D map;
       uniform float time;
@@ -248,7 +252,7 @@ export function createArcadeScreenMaterial() {
         float vig = smoothstep(0.85, 0.35, length(vUv - 0.5));
         col *= mix(0.22, 1.0, vig);
 
-        gl_FragColor = vec4(col, 1.0);
+        fragColor = vec4(col, 1.0);
       }
     `,
   });
