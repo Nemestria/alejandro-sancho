@@ -214,6 +214,26 @@ export default function DesktopApp() {
               arcadeScreenContent={
                 <ArcadeMenuScene labs={ARCADE_LABS} selectedIndex={labIndex} menuHint={t.arcade.menuHint} />
               }
+              arcadeLabContent={(() => {
+                const lab = ARCADE_LABS.find((l) => l.id === activeLab);
+                if (!lab?.url) return undefined;
+                return (
+                  <div style={{ width: "100%", height: "100%", position: "relative", background: "#000" }}>
+                    <iframe
+                      title={lab.title}
+                      src={lab.url}
+                      style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+                      allow="fullscreen"
+                    />
+                    <button
+                      onClick={() => setActiveLab(null)}
+                      style={{ position: "absolute", top: 4, right: 4, fontFamily: "monospace", fontSize: 9, background: "rgba(15,0,12,0.85)", color: "#f2bfe9", border: "1px solid rgba(242,191,233,0.4)", padding: "2px 7px", cursor: "pointer", letterSpacing: 1 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })()}
             />
             <CameraRig
               phase={phase}
@@ -296,29 +316,27 @@ export default function DesktopApp() {
           </div>
         )}
 
-        {/* Lab placeholder overlay — a confirmed menu selection lands here
-            until real per-lab pages exist. Same state-gated pattern as the
-            controls overlay below. */}
-        {activeLab && (
-          <div
-            onClick={() => setActiveLab(null)}
-            style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.75)", zIndex: 60 }}
-          >
+        {/* Labs without a URL still get the coming-soon card */}
+        {activeLab && (() => {
+          const lab = ARCADE_LABS.find((l) => l.id === activeLab);
+          if (lab?.url) return null; // rendered on the arcade screen via arcadeLabContent
+          return (
             <div
-              onClick={(e) => e.stopPropagation()}
-              style={{ fontFamily: "monospace", color: "#f2bfe9", border: "1px solid rgba(242,191,233,0.4)", background: "rgba(15,0,12,0.9)", padding: "42px 56px", maxWidth: 480, textAlign: "center", letterSpacing: 1 }}
+              onClick={() => setActiveLab(null)}
+              style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.75)", zIndex: 60 }}
             >
-              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 15, marginBottom: 20, letterSpacing: 2 }}>
-                {ARCADE_LABS.find((l) => l.id === activeLab)?.title ?? activeLab}
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{ fontFamily: "monospace", color: "#f2bfe9", border: "1px solid rgba(242,191,233,0.4)", background: "rgba(15,0,12,0.9)", padding: "42px 56px", maxWidth: 480, textAlign: "center", letterSpacing: 1 }}
+              >
+                <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 15, marginBottom: 20, letterSpacing: 2 }}>{lab?.title ?? activeLab}</div>
+                <div style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(242,191,233,0.75)", marginBottom: 24 }}>{lab?.description}</div>
+                <div style={{ fontSize: 14, letterSpacing: 3, marginBottom: 18 }}>— {t.arcade.labComingSoon} —</div>
+                <div style={{ fontSize: 11, color: "rgba(242,191,233,0.4)" }}>{t.arcade.labBackHint}</div>
               </div>
-              <div style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(242,191,233,0.75)", marginBottom: 24 }}>
-                {ARCADE_LABS.find((l) => l.id === activeLab)?.description}
-              </div>
-              <div style={{ fontSize: 14, letterSpacing: 3, marginBottom: 18 }}>— {t.arcade.labComingSoon} —</div>
-              <div style={{ fontSize: 11, color: "rgba(242,191,233,0.4)" }}>{t.arcade.labBackHint}</div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Subtle ESC hint — always visible in idle, fades when not needed */}
         {lang && phase === "idle" && !showHelp && (

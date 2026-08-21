@@ -8,6 +8,7 @@ export interface ArcadeLab {
   title: string;
   description: string;
   previewColor: string;
+  url?: string; // if set, opens in iframe overlay; otherwise shows coming-soon
 }
 
 export const ARCADE_LABS: ArcadeLab[] = [
@@ -16,6 +17,7 @@ export const ARCADE_LABS: ArcadeLab[] = [
     title: "SHADER PLAYGROUND",
     description: "Real-time GLSL experiments — noise fields, CRT warps, procedural materials.",
     previewColor: "#0e7c74",
+    url: import.meta.env.VITE_LAB_URL ?? "https://3d-lab.vercel.app/",
   },
   {
     id: "dioramas",

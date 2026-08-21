@@ -267,19 +267,20 @@ function Arcade({
   screenOn,
   onCoinInserted,
   screenChildren,
+  labContent,
 }: {
   onClick: (e: ThreeEvent<MouseEvent>) => void;
   onHoverChange: (hovered: boolean) => void;
   interactive: boolean;
-  // True while the camera is parked at this station ("arrived" + arcade) —
-  // gates the coin-slot interaction the same way `interactive` gates the
-  // station-select click.
   atStation: boolean;
   screenOn: boolean;
   onCoinInserted: () => void;
-  // Rendered inside the screen's RenderTexture portal (the menu scene) —
-  // content lives in DesktopApp so selection state can drive navigation.
+  // Rendered inside the screen's RenderTexture portal (the menu scene).
   screenChildren?: ReactNode;
+  // When a lab is active, replaces the RenderTexture with an Html iframe
+  // pinned to the real ArcadeScreen mesh position — same technique as
+  // ScreenPlane for the computer monitor.
+  labContent?: ReactNode;
 }) {
   const { scene, nodes } = useGLTF("/ArcadeFolio.glb") as unknown as ArcadeNodes;
 
@@ -526,10 +527,21 @@ function Arcade({
   // RenderTexture overlay below is the only surface at that spot — shared
   // geometry at identical transform would z-fight otherwise. Mutating
   // `visible` on the cached node is deliberate and reverted on power-off.
+  // Hide the baked screen mesh while the live surface is showing. Also hide
+  // when a lab is active — the Html iframe sits in front of everything.
   useEffect(() => {
-    nodes.ArcadeScreen.visible = !screenOn;
+    nodes.ArcadeScreen.visible = !screenOn && !labContent;
     return () => { nodes.ArcadeScreen.visible = true; };
-  }, [screenOn, nodes]);
+  }, [screenOn, labContent, nodes]);
+
+  const canvasHeight = useThree((state) => state.size.height);
+  // Arcade screen is narrower than the computer screen; derive distanceFactor
+  // the same way as ScreenPlane: (worldWidth * canvasHeight) / htmlWidthPx.
+  const arcadeHtmlWidth = 280;
+  const arcadeDistanceFactor = useMemo(
+    () => (0.9 * canvasHeight) / arcadeHtmlWidth,
+    [canvasHeight],
+  );
 
   return (
     <group
@@ -627,22 +639,38 @@ function Arcade({
           the basement.studio reference, via drei's built-in). Mounted only
           while powered on, so the extra render pass costs nothing until a
           coin goes in. */}
-      {screenOn && screenChildren && (
+      {screenOn && screenChildren && !labContent && (
         <mesh
           geometry={screenGeom}
           position={nodes.ArcadeScreen.position}
           quaternion={nodes.ArcadeScreen.quaternion}
         >
-          {/* Custom display shader instead of a stock material — the
-              RenderTexture's live output wires into its map uniform via
-              r3f's dashed attach path (the declarative equivalent of the
-              reference computer.tsx's onMapTexture + useEffect). */}
           <primitive object={screenMat} attach="material">
             <RenderTexture attach="uniforms-map-value" width={1024} height={1024} samples={4}>
               {screenChildren}
             </RenderTexture>
           </primitive>
         </mesh>
+      )}
+
+      {/* Lab iframe — Html pinned to the real screen mesh position so it
+          appears physically on the cabinet's screen when the camera arrives. */}
+      {screenOn && labContent && (
+        <group position={nodes.ArcadeScreen.position} quaternion={nodes.ArcadeScreen.quaternion}>
+          <Html
+            center
+            distanceFactor={arcadeDistanceFactor}
+            style={{
+              width: arcadeHtmlWidth,
+              height: arcadeHtmlWidth * (0.7 / 0.9),
+              pointerEvents: "auto",
+              overflow: "hidden",
+              background: "#000",
+            }}
+          >
+            {labContent}
+          </Html>
+        </group>
       )}
     </group>
   );
@@ -739,6 +767,7 @@ export default function Scene({
   arcadeScreenOn,
   onCoinInserted,
   arcadeScreenContent,
+  arcadeLabContent,
 }: {
   phase: FlightPhase;
   onComputerClick: () => void;
@@ -752,6 +781,7 @@ export default function Scene({
   arcadeScreenOn: boolean;
   onCoinInserted: () => void;
   arcadeScreenContent?: ReactNode;
+  arcadeLabContent?: ReactNode;
 }) {
   const [hovered, setHovered] = useState(false);
   // Hover-glow only makes sense while picking a station from the general
@@ -825,6 +855,7 @@ export default function Scene({
         screenOn={arcadeScreenOn}
         onCoinInserted={onCoinInserted}
         screenChildren={arcadeScreenContent}
+          labContent={arcadeLabContent}
       />
     </>
   );
