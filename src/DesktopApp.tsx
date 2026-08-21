@@ -36,7 +36,26 @@ function portfolioUrl(lang: Lang) {
 const PORTFOLIO_DESKTOP_WIDTH = 1280;
 const PORTFOLIO_DESKTOP_HEIGHT = 800;
 
-function PortfolioFrame({ lang }: { lang: Lang }) {
+// One embedded site on one screen. Shared by the monitor (portfolio) and the
+// arcade (lab) so both get the same treatment — the arcade's first pass used
+// a plain width/height:100% iframe and rendered the lab as a cramped square,
+// because at a few hundred CSS px the site fell into its own mobile layout.
+function SiteFrame({
+  src,
+  title,
+  tint,
+  children,
+  desktopWidth = PORTFOLIO_DESKTOP_WIDTH,
+  desktopHeight = PORTFOLIO_DESKTOP_HEIGHT,
+}: {
+  src: string;
+  title: string;
+  tint: string;
+  // Overlays that must sit above the glass layers (e.g. the lab's close ✕).
+  children?: React.ReactNode;
+  desktopWidth?: number;
+  desktopHeight?: number;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
@@ -45,14 +64,14 @@ function PortfolioFrame({ lang }: { lang: Lang }) {
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      setScale(Math.min(width / PORTFOLIO_DESKTOP_WIDTH, height / PORTFOLIO_DESKTOP_HEIGHT));
+      setScale(Math.min(width / desktopWidth, height / desktopHeight));
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [desktopWidth, desktopHeight]);
 
   return (
-    <ScreenGlass tint="#bfe9ff">
+    <ScreenGlass tint={tint}>
       <div
         ref={containerRef}
         style={{
@@ -66,11 +85,12 @@ function PortfolioFrame({ lang }: { lang: Lang }) {
         }}
       >
         <iframe
-          title="portfolio"
-          src={portfolioUrl(lang)}
+          title={title}
+          src={src}
+          allow="fullscreen"
           style={{
-            width: PORTFOLIO_DESKTOP_WIDTH,
-            height: PORTFOLIO_DESKTOP_HEIGHT,
+            width: desktopWidth,
+            height: desktopHeight,
             border: "none",
             transform: `scale(${scale})`,
             transformOrigin: "center",
@@ -78,6 +98,7 @@ function PortfolioFrame({ lang }: { lang: Lang }) {
           }}
         />
       </div>
+      {children}
     </ScreenGlass>
   );
 }
@@ -181,7 +202,7 @@ export default function DesktopApp() {
       <PasswordTerminal t={t} onSuccess={() => { setUnlocked(true); setFlashActive(true); }} />
     ) : unlocked ? (
       <div style={{ position: "relative", width: "100%", height: "100%" }}>
-        <PortfolioFrame lang={lang!} />
+        <SiteFrame title="portfolio" src={portfolioUrl(lang!)} tint="#bfe9ff" />
         {flashActive && <ScreenFlash onDone={() => setFlashActive(false)} />}
       </div>
     ) : null;
@@ -221,13 +242,7 @@ export default function DesktopApp() {
                 const lab = ARCADE_LABS.find((l) => l.id === activeLab);
                 if (!lab?.url) return undefined;
                 return (
-                  <ScreenGlass tint="#f2bfe9">
-                    <iframe
-                      title={lab.title}
-                      src={lab.url}
-                      style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-                      allow="fullscreen"
-                    />
+                  <SiteFrame title={lab.title} src={lab.url} tint="#f2bfe9">
                     {/* Above the glass layers, so it stays clickable */}
                     <button
                       onClick={() => setActiveLab(null)}
@@ -235,7 +250,7 @@ export default function DesktopApp() {
                     >
                       ✕
                     </button>
-                  </ScreenGlass>
+                  </SiteFrame>
                 );
               })()}
             />

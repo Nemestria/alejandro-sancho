@@ -39,16 +39,23 @@ export function createArcadeScreenMaterial() {
       time: { value: 0 },
       // Virtual CRT resolution — sets the scanline count (height) and the
       // horizontal beam-tap spacing. Aspect ~matches the glass (1.17:1).
-      texSize: { value: new Vector2(240, 205) },
+      // Tuned for legibility, not maximum period accuracy: the screen has to
+      // carry a menu (and eventually real site content), so the effects that
+      // destroy small text are pulled well back from the reference shader's
+      // defaults. Previous values are noted per line if you want the grittier
+      // look back on a screen that only shows large type.
+      texSize: { value: new Vector2(420, 359) }, // was 240x205 — finer scanlines, same 1.17:1
       // 1 Dots, 2 Grille, 3 Wide Grille, 4 Soft Wide Grille, 5 Slot, 0 none
-      maskType: { value: 1 },
-      curve: { value: 0.08 },
-      sharpness: { value: 0.6667 }, // 0.5 soft .. 1.0 crisp
-      colorOffset: { value: 0.15 }, // per-channel beam misconvergence
-      maskBrightness: { value: 1.0 },
+      maskType: { value: 4 }, // was 1 (Dots) — dots chew holes in glyph strokes
+      curve: { value: 0.05 }, // was 0.08 — less edge stretch to read through
+      sharpness: { value: 0.8 }, // was 0.6667 — crisper beam, less smear
+      // Biggest single legibility win: misconvergence smears every edge into
+      // red/blue ghosts, which at small type reads as unfocused noise.
+      colorOffset: { value: 0.04 }, // was 0.15
+      maskBrightness: { value: 0.65 }, // was 1.0
       scanlineBrightness: { value: 1.0 },
-      minScanlineThickness: { value: 0.5 }, // raise to fight moiré, 1 = none
-      aspect: { value: 205 / 240 }, // input height/width, used by the warp
+      minScanlineThickness: { value: 0.8 }, // was 0.5 — thicker floor, less moiré
+      aspect: { value: 359 / 420 }, // input height/width, used by the warp — keep in step with texSize
       wobbleStrength: { value: 0.0 },
     },
     vertexShader: /* glsl */ `
