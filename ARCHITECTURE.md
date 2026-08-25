@@ -87,18 +87,37 @@ This plane serves two jobs:
 1. **Hover glow** — `onPointerOver`/`onPointerOut` (on the Computer body or the plane itself) toggles this plane's emissive intensity (screen lights up on hover, off on hover-out).
 2. **HTML anchor** — drei's `<Html>` in **billboard mode** (no `transform` prop) attached at this plane's position, used for both the password terminal (Checkpoint 3) and the embedded portfolio iframe (Checkpoint 4). `<Html transform occlude>` was tried first but produced broken/off-screen CSS matrices in testing; billboard mode is a reasonable simplification here since the locked-POV camera (see above) always looks nearly straight at the screen by design, so there's no real perspective skew to correct for.
 
-## Post-processing — split between the 3D canvas and the whole page
+## Post-processing — one custom render pipeline
 
 **Revised.** The original plan below (a single `EffectComposer` with all the CRT effects, ramped with flight progress) is superseded: the visitor asked for the vintage look to cover *everything on screen*, not just the 3D canvas — including the plain DOM buttons, `LanguageGate`, and the embedded portfolio iframe once unlocked. `EffectComposer` only post-processes the WebGL canvas's own pixels, so it can't reach any of that.
 
-The effect is split by what's actually possible for each part:
+**Revised again.** The "cover everything with a CSS filter" answer above was correct about reach and wrong about cost. Applying `filter: url(#crt-aberration)` — a seven-node SVG filter graph — to a wrapper containing a live WebGL canvas made the browser re-run that graph over the whole document on every animated frame, and the overlay's 1px-on-3px scanline gradient landed on the device pixel grid and crawled. Together those were the "unoptimised and too noisy" complaint.
 
-- **`src/PostFX.tsx`** — `@react-three/postprocessing`'s `<EffectComposer>` with only `LensDistortionEffect` (barrel/fisheye warp). This stays 3D-only on purpose: geometrically warping arbitrary DOM (and a cross-origin iframe) isn't practical the way warping 3D geometry is. `LensDistortionEffect` isn't one of the effect classes the library ships a JSX wrapper for, so it's wrapped manually with the library's own `wrapEffect()` helper — the same technique `@react-three/postprocessing` uses internally for its built-ins.
-- **`src/CrtOverlay.tsx`** — chromatic aberration (a hand-written SVG `<filter>`, referenced via CSS `filter: url(#crt-aberration)` on the root wrapper in `App.tsx`) plus scanlines/vignette (a `position: fixed` CSS layer on top of everything). CSS `filter` operates at the compositing stage, so it affects the 3D canvas, the DOM overlays, *and* the cross-origin portfolio iframe exactly the same way — unlike reading the iframe's pixels into a `<canvas>` (which CORS would block), a purely visual filter isn't restricted by cross-origin rules.
+The current arrangement is modelled on the [basement.studio 2k25 site](https://github.com/basementstudio/website-2k25)'s `components/postprocessing/renderer.tsx`, and splits by *what each surface actually is* rather than by DOM-vs-canvas:
 
-Both halves are driven by one `fxEnabled` boolean in `App.tsx` (a settings button, top-right, persisted in `localStorage`) — toggling it off unmounts `<PostFX>` and skips rendering `<CrtOverlay>`/applying the CSS filter, rather than tracking separate enabled state per effect.
+- **`src/render/Renderer.tsx` + `src/render/postMaterial.ts`** — the 3D canvas. Scene children are portalled into a private `Scene`, drawn once into a linear `HalfFloatType` render target with tone mapping off, and resolved by a **single** fullscreen quad that does the lens warp, chromatic aberration, ACES tone map, grading, phosphor tint, scanlines, grain and vignette, then encodes to sRGB exactly once. Taking over the render loop is what `useFrame(cb, 1)` does — any priority above 0 disables r3f's automatic render.
 
-**Original plan (kept for history, no longer accurate):** a flight-progress-ramped `ChromaticAberration`/`Vignette`/`Noise` all living inside one canvas-only `EffectComposer`. The ramping-with-flight-progress idea was never implemented — the current version is a flat toggle, not dynamic — revisit DESIGN.md's camera-language section if that dynamic feel is wanted later.
+  Barrel warp and chromatic aberration are deliberately fused: a real lens produces the second *because of* the first, so sampling R/G/B at three slightly different warp strengths is both cheaper and more correct than running them as separate stages. Scanlines use a cosine at a fixed 3-device-pixel pitch, safely above the Nyquist limit of the fragment grid, so they cannot alias the way the CSS version did.
+
+  Per-phase looks live in one `GRADES` table (`idle`/`screen`/`arcade`), damped toward on phase change — the reference's per-scene `postprocessing` settings in miniature, replacing intensity constants that used to be duplicated across two files.
+
+- **`src/ScreenGlass.tsx`** — the cross-origin iframes (the portfolio, the labs). WebGL can never sample DOM, so the mesh shader cannot run over these; what it draws instead is *the glass*, on a small WebGL canvas composited in `mix-blend-mode: multiply` over the iframe. Its backing store is sized in device pixels, so the scanline pitch is correct by construction at any `distanceFactor` — the previous CSS version had to measure the ancestor transform chain with `getBoundingClientRect` to achieve the same thing.
+
+- **`src/CrtOverlay.tsx`** — what is left is one static gradient layer for the DOM-only `LanguageGate`. No filter, no animation, no per-frame cost.
+
+- **`src/arcadeScreenMaterial.ts`** — the arcade's own screen, which *is* a WebGL texture and so gets the real thing. See "Arcade screen shader" below.
+
+All of it is driven by the one `fxEnabled` boolean in `DesktopApp.tsx` (settings button, top-right, persisted in `localStorage`). Switching it off does not tear the pipeline down; it damps every grade uniform to a neutral value and sets `uTonemap` to 0, which makes the pass a straight linear-to-sRGB passthrough.
+
+## Arcade screen shader
+
+`src/arcadeScreenMaterial.ts` is a port of the same reference's `shaders/material-screen/fragment.glsl`, retinted from its orange phosphor to a teal-to-purple duotone.
+
+It replaced a port of "CRT Shader by Harrison Allen (V4)", which simulated the electron beam literally: five horizontal taps across two virtual scanline rows (ten `texture()` fetches), each wrapped in an sRGB-to-linear conversion (~30 `pow` per fragment), plus a branchy phosphor-mask lookup. It was accurate and far too expensive for a surface that is on-camera the entire time you are at the cabinet — and the accuracy was itself the noise problem, because beam misconvergence and a subpixel mask both chew holes in small type. The tuning comments on that version read as a list of retreats from the reference values, which was the signal to change approach.
+
+The replacement costs one texture fetch and one `pow`. It gets its CRT character from cheap-but-characterful terms instead: per-row interference jitter, barrel `curveRemapUV`, a scan band sweeping every ~12s, a luma-driven duotone phosphor ramp, a line-by-line power-on wipe (`uReveal`), vignette, grain, and cosine scanlines.
+
+**Original plan (kept for history, no longer accurate):** a flight-progress-ramped `ChromaticAberration`/`Vignette`/`Noise` all living inside one canvas-only `EffectComposer`. `@react-three/postprocessing` and `postprocessing` are no longer dependencies at all. The ramp is now partially real — grades are damped between `idle`, `screen` and `arcade` — but keyed to arrival phase rather than to continuous flight progress.
 
 ## Floor
 

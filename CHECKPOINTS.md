@@ -70,7 +70,7 @@ Work through these in order. Each one should run (`pnpm dev`) and visibly demons
 - [x] Vercel project linked and renamed to `nemestria-world/alejandro-sancho` (live at `alejandro-sancho.vercel.app`, was `3d-gateway.vercel.app`), auto-deploys on every push to `master`
 - [ ] Decide & wire the final redirect URL (custom domain question from ARCHITECTURE.md, if relevant by this point)
 - [x] Internationalization: EN/ES/CA via `src/i18n.ts`, covering every piece of app-owned UI text (not the embedded portfolio's own separate language selector)
-- [x] Vintage CRT look, page-wide: barrel/fisheye lens distortion (3D-canvas-only, `src/PostFX.tsx`) + chromatic aberration/scanlines/vignette (whole page incl. DOM and the embedded iframe, `src/CrtOverlay.tsx`), one settings-button toggle for both, persisted in `localStorage` — see ARCHITECTURE.md "Post-processing"
+- [x] Vintage CRT look, page-wide: barrel/fisheye lens distortion (3D-canvas-only, `src/PostFX.tsx`) + chromatic aberration/scanlines/vignette (whole page incl. DOM and the embedded iframe, `src/CrtOverlay.tsx`), one settings-button toggle for both, persisted in `localStorage` — **superseded**: both were folded into one custom render pipeline (`src/render/`), `PostFX.tsx` is deleted and the page-wide SVG filter is gone. See ARCHITECTURE.md "Post-processing"
 - [x] Fixed a floor/grid z-fighting flicker by replacing the old two-plane floor+grid with a single textured `OfficeFloor` mesh — see ARCHITECTURE.md "Floor"
 
 **Still open:** a real performance pass, swapping in Alejandro's real model, and the final domain/URL decision.

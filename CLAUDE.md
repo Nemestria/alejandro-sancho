@@ -27,8 +27,10 @@ pnpm build
 - `src/PasswordTerminal.tsx` — password UI (hint + explicit CONFIRM button alongside Enter-to-submit), rendered via drei `<Html>` (billboard mode) anchored to the screen-plane, all strings passed in via the `t` translation prop
 - `src/i18n.ts` — `Lang` type (`en`/`es`/`ca`) + the `translations` dictionary; this is the one file to edit for wording/translation changes, see ARCHITECTURE.md "Internationalization"
 - `src/LanguageGate.tsx` — language-select screen shown before anything else; also the loading screen (tracks real asset-load progress via drei's `useProgress`, same loading manager `useGLTF` uses)
-- `src/PostFX.tsx` — 3D-scene-only barrel/fisheye lens distortion (`@react-three/postprocessing`'s `EffectComposer`)
-- `src/CrtOverlay.tsx` — page-wide chromatic aberration (SVG filter) + scanlines/vignette (CSS layer), applied to everything in `App.tsx` including the embedded iframe — see ARCHITECTURE.md "Post-processing" for why this is split from `PostFX.tsx`
+- `src/render/Renderer.tsx` — the custom render pipeline: portals the scene into a private `Scene`, renders it to a linear HalfFloat target, resolves it with one fullscreen quad. Owns the `GRADES` table (`idle`/`screen`/`arcade`). Replaces the old `PostFX.tsx` + `EffectComposer`
+- `src/render/postMaterial.ts` — that quad's shader: fused lens warp + chromatic aberration, ACES, grading, phosphor tint, scanlines, grain, vignette, sRGB encode
+- `src/ScreenGlass.tsx` — CRT glass over the cross-origin iframes; a small WebGL canvas in `mix-blend-mode: multiply`, sized in device pixels so the scanline pitch never drifts with `distanceFactor`
+- `src/CrtOverlay.tsx` — one static scanline/vignette layer for the DOM-only `LanguageGate`. The page-wide SVG filter it used to apply is gone — see ARCHITECTURE.md "Post-processing"
 - `package.json` — `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing` already installed
 
 ## Conventions (carried over from the portfolio, keep consistent)
@@ -55,7 +57,7 @@ Checkpoints 0-4 done, Checkpoint 5 mostly done, all verified end-to-end in-brows
 - Hover-glow + screen-anchored password terminal (hint + CONFIRM button) + embedded portfolio iframe, all anchored to `ScreenPlane` (`src/Scene.tsx`, world-space anchor in `src/screenAnchor.ts`)
 - In-scene note prop ("1234") and a one-time `WelcomeSign` (dismisses on first station-entry or after 15s)
 - Language-select gate (EN/ES/CA, `src/LanguageGate.tsx`) that doubles as the asset-loading screen; all app UI text translated via `src/i18n.ts`
-- Vintage CRT look: 3D-only barrel/fisheye lens distortion (`src/PostFX.tsx`) + page-wide chromatic aberration/scanlines/vignette (`src/CrtOverlay.tsx`), one settings toggle for both, persisted in `localStorage`
+- Vintage CRT look via one custom render pipeline (`src/render/`): fused lens warp + chromatic aberration, ACES tone mapping, per-phase grades, scanlines/grain/vignette, all in a single fullscreen pass. The iframes get `src/ScreenGlass.tsx`; the arcade screen gets the real shader (`src/arcadeScreenMaterial.ts`). One settings toggle, persisted in `localStorage`
 
 **Still open:** exit-transition flash on password success (Checkpoint 4), a real performance pass, swapping the placeholder model for Alejandro's own, and the domain/URL decision — see CHECKPOINTS.md Checkpoint 5 for the full list.
 

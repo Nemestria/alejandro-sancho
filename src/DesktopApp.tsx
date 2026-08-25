@@ -5,13 +5,13 @@ import CameraRig, { type FlightPhase } from "./CameraRig";
 import PasswordTerminal from "./PasswordTerminal";
 import ScreenFlash from "./ScreenFlash";
 import LanguageGate from "./LanguageGate";
-import PostFX from "./PostFX";
 import CrtOverlay from "./CrtOverlay";
+import Renderer, { type GradePhase } from "./render/Renderer";
 import { translations, type Lang } from "./i18n";
 import { PORTFOLIO_BASE_URL } from "./portfolioUrl";
 import type { StationId } from "./stations";
 import { ARCADE_LABS } from "./arcadeLabs";
-import ArcadeMenuScene from "./ArcadeMenuScene";
+import { useArcadeScreen } from "./useArcadeScreen";
 import ScreenGlass from "./ScreenGlass";
 
 const FX_STORAGE_KEY = "3d-gateway-fx-enabled";
@@ -142,7 +142,7 @@ export default function DesktopApp() {
     setActiveLab(null);
     setPhase("returning");
   };
-  // Vintage CRT/wide-lens post-processing (PostFX.tsx), toggleable from a
+  // Vintage CRT/wide-lens post-processing (render/Renderer.tsx), toggleable from a
   // settings button — persisted so the choice survives a reload.
   const [fxEnabled, setFxEnabled] = useState(
     () => localStorage.getItem(FX_STORAGE_KEY) !== "false",
@@ -191,7 +191,21 @@ export default function DesktopApp() {
     return () => window.removeEventListener("keydown", onKey);
   }, [arcadeMenuActive]);
 
+  // Which grade the render pipeline runs — see render/Renderer.tsx GRADES.
+  const gradePhase: GradePhase =
+    phase !== "arrived" ? "idle" : activeStation === "arcade" ? "arcade" : "screen";
+
   const t = translations[lang ?? "en"];
+
+  // The cabinet's picture: a character-cell canvas (textScreen.ts) painted
+  // with the reference's arcade layout (arcadeMenuScreen.ts), rather than a
+  // second 3D scene rendered to a texture every frame.
+  const arcadeScreenTexture = useArcadeScreen({
+    active: arcadeScreenOn && !activeLab,
+    labs: ARCADE_LABS,
+    selectedIndex: labIndex,
+    hint: t.arcade.menuHint,
+  });
 
   // Rendered glued to the monitor's screen-plane (see Scene.tsx/CameraRig's
   // "Screen-plane" note) via drei's <Html transform>, not as a full-page
@@ -209,21 +223,14 @@ export default function DesktopApp() {
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#000", position: "relative" }}>
-      {/* Chromatic aberration (via CrtOverlay's SVG filter) applies to
-          literally everything painted inside this wrapper — the 3D canvas,
-          the plain DOM buttons, LanguageGate, and (once unlocked) the
-          embedded portfolio iframe. CSS `filter` operates at the
-          compositing stage, so cross-origin content is affected visually
-          same as anything else, unlike e.g. drawing the iframe into a
-          <canvas> (which CORS would block). */}
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          filter: fxEnabled ? "url(#crt-aberration)" : undefined,
-        }}
-      >
+      {/* No page-wide CSS/SVG filter any more — see CrtOverlay.tsx. The 3D
+          canvas grades itself in one pass (render/Renderer.tsx) and the
+          embedded iframes get their own CRT glass (ScreenGlass.tsx), which
+          together cover what the whole-document filter used to, without
+          making the compositor re-filter every DOM node on every frame. */}
+      <div style={{ width: "100%", height: "100%" }}>
         <Canvas shadows camera={{ position: [4, 3, 6], fov: 50 }}>
+          <Renderer enabled={fxEnabled} phase={gradePhase}>
           <Suspense fallback={null}>
             <Scene
               phase={phase}
@@ -235,9 +242,7 @@ export default function DesktopApp() {
               arcadeArrived={phase === "arrived" && activeStation === "arcade"}
               arcadeScreenOn={arcadeScreenOn}
               onCoinInserted={() => setArcadeScreenOn(true)}
-              arcadeScreenContent={
-                <ArcadeMenuScene labs={ARCADE_LABS} selectedIndex={labIndex} menuHint={t.arcade.menuHint} />
-              }
+              arcadeScreenTexture={arcadeScreenTexture}
               arcadeLabContent={(() => {
                 const lab = ARCADE_LABS.find((l) => l.id === activeLab);
                 if (!lab?.url) return undefined;
@@ -268,11 +273,7 @@ export default function DesktopApp() {
               resetKey={camResetKey}
             />
           </Suspense>
-          <PostFX
-            enabled={fxEnabled}
-            atScreen={phase === "arrived"}
-            flat={phase === "arrived" && activeStation === "arcade"}
-          />
+          </Renderer>
         </Canvas>
 
         {phase !== "idle" && phase !== "returning" && (
@@ -387,7 +388,8 @@ export default function DesktopApp() {
         )}
       </div>
 
-      {fxEnabled && <CrtOverlay atScreen={phase === "arrived"} />}
+      {/* DOM-only screens keep a static CRT layer; the canvas grades itself. */}
+      {fxEnabled && !lang && <CrtOverlay />}
     </div>
   );
 }

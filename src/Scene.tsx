@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useGLTF, Html, Text, Billboard, RenderTexture } from "@react-three/drei";
+import { useGLTF, Html, Text, Billboard } from "@react-three/drei";
 import {
   Box3, CanvasTexture, DataTexture, Euler, MathUtils, MeshToonMaterial,
   NearestFilter, Object3D, RedFormat, RepeatWrapping, Vector3,
-  type Group, type Material, type Mesh,
+  type Group, type Material, type Mesh, type Texture,
 } from "three";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import type { FlightPhase } from "./CameraRig";
@@ -275,7 +275,7 @@ function Arcade({
   atStation,
   screenOn,
   onCoinInserted,
-  screenChildren,
+  screenTexture,
   labContent,
 }: {
   onClick: (e: ThreeEvent<MouseEvent>) => void;
@@ -284,8 +284,10 @@ function Arcade({
   atStation: boolean;
   screenOn: boolean;
   onCoinInserted: () => void;
-  // Rendered inside the screen's RenderTexture portal (the menu scene).
-  screenChildren?: ReactNode;
+  // The picture on the glass — a character-cell canvas (textScreen.ts), not a
+  // second 3D scene. It used to be a 1024x1024 RenderTexture portal redrawn
+  // every frame; the canvas repaints only when the menu changes.
+  screenTexture?: Texture | null;
   // When a lab is active, replaces the RenderTexture with an Html iframe
   // pinned to the real ArcadeScreen mesh position — same technique as
   // ScreenPlane for the computer monitor.
@@ -470,11 +472,14 @@ function Arcade({
     return g;
   }, [nodes]);
 
-  // The display shader for the live screen (pixelation/dither/vignette/
-  // scanlines — see arcadeScreenMaterial.ts). One instance for the
-  // component's lifetime; the RenderTexture attaches into uniforms.map.
+  // The display shader for the live screen (curvature, interference, scan
+  // band, duotone phosphor — see arcadeScreenMaterial.ts). One instance for
+  // the component's lifetime; the picture is bound into uniforms.map below.
   const screenMat = useMemo(() => createArcadeScreenMaterial(), []);
   useEffect(() => () => screenMat.dispose(), [screenMat]);
+  useEffect(() => {
+    screenMat.uniforms.map.value = screenTexture ?? null;
+  }, [screenMat, screenTexture]);
 
   const [coinFlying, setCoinFlying] = useState(false);
   const coinT = useRef(0);
@@ -634,22 +639,15 @@ function Arcade({
       )}
 
       {/* The live screen — same geometry as the modeled ArcadeScreen at the
-          same transform, wearing the RenderTexture (a genuine second scene
-          rendered to an off-screen target every frame — the technique from
-          the basement.studio reference, via drei's built-in). Mounted only
-          while powered on, so the extra render pass costs nothing until a
-          coin goes in. */}
-      {screenOn && screenChildren && !labContent && (
+          same transform, wearing the text-mode canvas through the CRT
+          shader. Mounted only while powered on. */}
+      {screenOn && screenTexture && !labContent && (
         <mesh
           geometry={screenGeom}
           position={nodes.ArcadeScreen.position}
           quaternion={nodes.ArcadeScreen.quaternion}
         >
-          <primitive object={screenMat} attach="material">
-            <RenderTexture attach="uniforms-map-value" width={1024} height={1024} samples={4}>
-              {screenChildren}
-            </RenderTexture>
-          </primitive>
+          <primitive object={screenMat} attach="material" />
         </mesh>
       )}
 
@@ -781,7 +779,7 @@ export default function Scene({
   arcadeArrived,
   arcadeScreenOn,
   onCoinInserted,
-  arcadeScreenContent,
+  arcadeScreenTexture,
   arcadeLabContent,
 }: {
   phase: FlightPhase;
@@ -795,7 +793,7 @@ export default function Scene({
   arcadeArrived: boolean;
   arcadeScreenOn: boolean;
   onCoinInserted: () => void;
-  arcadeScreenContent?: ReactNode;
+  arcadeScreenTexture?: Texture | null;
   arcadeLabContent?: ReactNode;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -835,7 +833,7 @@ export default function Scene({
       <color attach="background" args={["#000000"]} />
       <fog attach="fog" args={["#000000", 8, 30]} />
 
-      <ambientLight intensity={0.08} />
+      <ambientLight intensity={0.16} />
       <spotLight
         position={[0, 6, 0.5]}
         angle={0.35}
@@ -869,7 +867,7 @@ export default function Scene({
         atStation={arcadeArrived}
         screenOn={arcadeScreenOn}
         onCoinInserted={onCoinInserted}
-        screenChildren={arcadeScreenContent}
+        screenTexture={arcadeScreenTexture}
         labContent={arcadeLabContent}
       />
       {arcadeScreenOn && arcadeLabContent && (

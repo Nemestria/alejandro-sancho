@@ -1,266 +1,167 @@
-import { GLSL3, ShaderMaterial, Vector2 } from "three";
+import { Color, ShaderMaterial } from "three";
 
-// The arcade screen's display shader — a port of "CRT Shader by Harrison
-// Allen (V4)" (Godot canvas_item shader, supplied by Alejandro) onto the
-// live RenderTexture. It replaces the earlier pixelate/Bayer-dither pass
-// entirely: this one simulates the actual CRT electron beam instead of
-// faking the artifacts.
+// The arcade screen's display shader.
 //
-// Per fragment:
-//   1. warp       — barrel-curves the UVs like curved glass (black outside)
-//   2. scanlines  — samples the two nearest virtual scanline rows at 5
-//                   horizontal taps each, weighted by distance to the
-//                   "beam" (sharpness), with per-channel beam offset
-//                   (colorOffset) for slightly-misconverged CRT color;
-//                   row brightness modulates each scanline's thickness
-//   3. mask       — phosphor pattern (dots/grilles/slot) in *physical*
-//                   screen pixels via gl_FragCoord, with highlight bleed
-//                   into neighboring subpixels so brights stay bright
-//   4. vignette   — kept from the previous shader (explicitly requested;
-//                   not part of the Godot original)
+// This is a port of the basement.studio reference's
+// `src/shaders/material-screen/fragment.glsl`, retinted from its orange
+// phosphor to a teal-to-purple duotone.
 //
-// Port notes vs the Godot original:
-// - Godot reads a genuinely low-res input texture and derives scanline
-//   count from textureSize(). Our RenderTexture is 1024px, so `texSize` is
-//   a *virtual* resolution instead: all sampling happens at virtual-pixel
-//   centers through texture(), equivalent to texelFetch on a real low-res
-//   texture (the FBO's linear filter does the downsample).
-// - The const-array mask patterns became ternary chains — dynamically
-//   indexing local const arrays is the construct ANGLE (Windows GL→D3D)
-//   miscompiles most often.
-// - canvas_item's vertex-stage wobble is computed in the fragment instead
-//   (one cos() — not worth a varying).
-// - Needs GLSL3 (bvec mix(), texture()) — hence glslVersion below.
+// It replaces a port of "CRT Shader by Harrison Allen (V4)", which simulated
+// the electron beam literally: five horizontal taps across two virtual
+// scanline rows (ten texture() fetches), every one of them wrapped in an
+// sRGB->linear conversion (three pow() each, ~30 pow per fragment), plus a
+// branchy phosphor-mask lookup and ten smoothsteps. Accurate, and far too
+// expensive for a screen that is on-camera the whole time you are at the
+// cabinet. The visible symptom was noise as much as cost: beam
+// misconvergence (colorOffset) and the subpixel mask both chew holes in
+// small type, which is why the tuning notes on the old version read as a
+// list of retreats from the reference values.
+//
+// The approach here is the one the reference actually ships, and it is
+// cheaper by roughly an order of magnitude — ONE texture fetch and one pow:
+//
+//   1. interference  — per-row horizontal jitter, so the picture never sits
+//                      perfectly still (random() keyed on the row + time)
+//   2. curveRemapUV  — barrel curvature, black outside the glass
+//   3. scan band     — a bright line sweeping down every ~12s, dragging a
+//                      small horizontal displacement with it
+//   4. duotone       — the sampled colour is reduced to luma and remapped
+//                      across a teal->purple phosphor ramp. This is what
+//                      makes it read as a tube rather than an LCD, and it
+//                      costs two mixes instead of a subpixel mask
+//   5. reveal        — line-by-line wipe on power-on, driven by uReveal
+//   6. vignette + grain + scanlines
+//
+// Scanlines come from a cosine on uv, not a step(). A hard step is what
+// aliases into moiré when the screen is small on-camera; a cosine at this
+// pitch degrades to flat grey instead, which is the correct failure mode.
 export function createArcadeScreenMaterial() {
-  return new ShaderMaterial({
-    glslVersion: GLSL3,
+  const material = new ShaderMaterial({
     uniforms: {
       map: { value: null },
       time: { value: 0 },
-      // Virtual CRT resolution — sets the scanline count (height) and the
-      // horizontal beam-tap spacing. Aspect ~matches the glass (1.17:1).
-      // Tuned for legibility, not maximum period accuracy: the screen has to
-      // carry a menu (and eventually real site content), so the effects that
-      // destroy small text are pulled well back from the reference shader's
-      // defaults. Previous values are noted per line if you want the grittier
-      // look back on a screen that only shows large type.
-      texSize: { value: new Vector2(420, 359) }, // was 240x205 — finer scanlines, same 1.17:1
-      // 1 Dots, 2 Grille, 3 Wide Grille, 4 Soft Wide Grille, 5 Slot, 0 none
-      maskType: { value: 4 }, // was 1 (Dots) — dots chew holes in glyph strokes
-      curve: { value: 0.05 }, // was 0.08 — less edge stretch to read through
-      sharpness: { value: 0.8 }, // was 0.6667 — crisper beam, less smear
-      // Biggest single legibility win: misconvergence smears every edge into
-      // red/blue ghosts, which at small type reads as unfocused noise.
-      colorOffset: { value: 0.04 }, // was 0.15
-      maskBrightness: { value: 0.65 }, // was 1.0
-      scanlineBrightness: { value: 1.0 },
-      minScanlineThickness: { value: 0.8 }, // was 0.5 — thicker floor, less moiré
-      aspect: { value: 359 / 420 }, // input height/width, used by the warp — keep in step with texSize
-      wobbleStrength: { value: 0.0 },
+      // 0 = black screen, 1 = fully revealed. Scene.tsx can animate this on
+      // coin-insert for the reference's line-by-line power-on wipe; it sits
+      // at 1 by default so nothing breaks if it never does.
+      uReveal: { value: 1 },
+      // Phosphor ramp. Shadows land on teal, highlights on purple, which is
+      // this project's palette where the reference used a single orange.
+      uTintLow: { value: new Color("#0f8f9c") },
+      uTintHigh: { value: new Color("#c9a2ff") },
+      uBrightness: { value: 1.35 },
     },
     vertexShader: /* glsl */ `
-      out vec2 vUv;
+      varying vec2 vUv;
       void main() {
         vUv = uv;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: /* glsl */ `
-      precision highp float;
-      // GLSL ES 3.00 removed gl_FragColor — the output must be declared.
-      // Without this the program fails to link ("useProgram: program not
-      // valid") and the screen draws nothing at all.
-      out vec4 fragColor;
-      in vec2 vUv;
+      precision mediump float;
+
       uniform sampler2D map;
       uniform float time;
-      uniform vec2 texSize;
-      uniform int maskType;
-      uniform float curve;
-      uniform float sharpness;
-      uniform float colorOffset;
-      uniform float maskBrightness;
-      uniform float scanlineBrightness;
-      uniform float minScanlineThickness;
-      uniform float aspect;
-      uniform float wobbleStrength;
+      uniform float uReveal;
+      uniform vec3 uTintLow;
+      uniform vec3 uTintHigh;
+      uniform float uBrightness;
 
-      vec2 warp(vec2 uv) {
-        uv -= 0.5;
-        uv.x /= aspect;
-        float warping = dot(uv, uv) * curve;
-        warping -= curve * 0.25; // compensate for shrinking
-        uv /= 1.0 - warping;
-        uv.x *= aspect;
-        return uv + 0.5;
+      varying vec2 vUv;
+
+      #define CURVE            0.055
+      #define SCANLINE_COUNT   240.0
+      #define SCANLINE_DEPTH   0.30
+      #define GRAIN            0.014
+      #define INTERFERENCE     0.35
+      #define BLACK_LIFT       0.055
+      #define VIGNETTE         0.22
+      #define REVEAL_LINE      0.02
+
+      #define SCAN_SPEED       5.0
+      #define SCAN_CYCLE       10.0
+      #define SCAN_DISTORTION  0.003
+
+      // Barrel curvature — the reference's curveRemapUV verbatim.
+      vec2 curveRemapUV(vec2 uv) {
+        uv = uv * 2.0 - 1.0;
+        vec2 offset = abs(uv.yx) / vec2(5.0, 5.0);
+        uv = uv + uv * offset * offset * CURVE;
+        return uv * 0.5 + 0.5;
       }
 
-      vec3 linearToSrgb(vec3 col) {
-        return mix(
-          (pow(col, vec3(1.0 / 2.4)) * 1.055) - 0.055,
-          col * 12.92,
-          lessThan(col, vec3(0.0031318))
-        );
-      }
-
-      vec3 srgbToLinear(vec3 col) {
-        return mix(
-          pow((col + 0.055) / 1.055, vec3(2.4)),
-          col / 12.92,
-          lessThan(col, vec3(0.04045))
-        );
-      }
-
-      // texelFetch stand-in: sample the (high-res) render target at a
-      // virtual-pixel center, in linear color. Clamp-to-edge wrap covers
-      // the out-of-range taps the original relied on texelFetch clamping.
-      vec3 fetchVirtual(float x, float y) {
-        return srgbToLinear(texture(map, (vec2(x, y) + 0.5) / texSize).rgb);
-      }
-
-      vec3 scanlines(vec2 uv) {
-        uv *= texSize;
-
-        // Upper of the two scanline rows straddling this fragment
-        float y = floor(uv.y + 0.5) - 1.0;
-        float x = floor(uv.x);
-
-        // Five horizontal beam taps
-        float ax = x - 2.0;
-        float bx = x - 1.0;
-        float cx = x;
-        float dx = x + 1.0;
-        float ex = x + 2.0;
-
-        vec3 upperA = fetchVirtual(ax, y);
-        vec3 upperB = fetchVirtual(bx, y);
-        vec3 upperC = fetchVirtual(cx, y);
-        vec3 upperD = fetchVirtual(dx, y);
-        vec3 upperE = fetchVirtual(ex, y);
-
-        y += 1.0;
-        vec3 lowerA = fetchVirtual(ax, y);
-        vec3 lowerB = fetchVirtual(bx, y);
-        vec3 lowerC = fetchVirtual(cx, y);
-        vec3 lowerD = fetchVirtual(dx, y);
-        vec3 lowerE = fetchVirtual(ex, y);
-
-        // Electron beam x per channel — colorOffset misconverges R/B
-        vec3 beam = vec3(uv.x - 0.5);
-        beam.r -= colorOffset;
-        beam.b += colorOffset;
-
-        vec3 weightA = smoothstep(1.0, 0.0, (beam - ax) * sharpness);
-        vec3 weightB = smoothstep(1.0, 0.0, (beam - bx) * sharpness);
-        vec3 weightC = smoothstep(1.0, 0.0, abs(beam - cx) * sharpness);
-        vec3 weightD = smoothstep(1.0, 0.0, (dx - beam) * sharpness);
-        vec3 weightE = smoothstep(1.0, 0.0, (ex - beam) * sharpness);
-
-        vec3 upperCol = upperA * weightA + upperB * weightB + upperC * weightC
-                      + upperD * weightD + upperE * weightE;
-        vec3 lowerCol = lowerA * weightA + lowerB * weightB + lowerC * weightC
-                      + lowerD * weightD + lowerE * weightE;
-
-        vec3 weightScaler = vec3(1.0) / (weightA + weightB + weightC + weightD + weightE);
-        upperCol *= weightScaler * scanlineBrightness;
-        lowerCol *= weightScaler * scanlineBrightness;
-
-        // Brighter rows draw fatter scanlines
-        vec3 upperThickness = mix(vec3(minScanlineThickness), vec3(1.0), upperCol);
-        vec3 lowerThickness = mix(vec3(minScanlineThickness), vec3(1.0), lowerCol);
-
-        // Vertical sawtooth between the two rows
-        float sawtooth = (uv.y + 0.5) - y;
-
-        vec3 upperLine = smoothstep(1.0, 0.0, vec3(sawtooth) / upperThickness);
-        vec3 lowerLine = smoothstep(1.0, 0.0, vec3(1.0 - sawtooth) / lowerThickness);
-
-        // Correct brightness below minScanlineThickness
-        upperLine *= upperCol / upperThickness;
-        lowerLine *= lowerCol / lowerThickness;
-
-        return upperLine + lowerLine;
-      }
-
-      // Phosphor patterns, in physical screen pixels. .w = the pattern's
-      // average brightness, used by applyMask to re-normalize.
-      vec4 generateMask(vec2 fragcoord) {
-        if (maskType == 1) { // Dots
-          ivec2 ic = ivec2(fragcoord);
-          int i = (ic.y * 2 + ic.x) % 4;
-          vec3 p = i == 0 ? vec3(1, 0, 0)
-                 : i == 1 ? vec3(0, 1, 0)
-                 : i == 2 ? vec3(0, 0, 1)
-                 : vec3(0.0);
-          return vec4(p, 0.25);
-        }
-        if (maskType == 2) { // Aperture grille
-          return vec4(int(fragcoord.x) % 2 == 0 ? vec3(0, 1, 0) : vec3(1, 0, 1), 0.5);
-        }
-        if (maskType == 3) { // Wide grille
-          int i = int(fragcoord.x) % 4;
-          vec3 p = i == 0 ? vec3(1, 0, 0)
-                 : i == 1 ? vec3(0, 1, 0)
-                 : i == 2 ? vec3(0, 0, 1)
-                 : vec3(0.0);
-          return vec4(p, 0.25);
-        }
-        if (maskType == 4) { // Wide soft grille
-          int i = int(fragcoord.x) % 4;
-          vec3 p = i == 0 ? vec3(1.0, 0.125, 0.0)
-                 : i == 1 ? vec3(0.125, 1.0, 0.125)
-                 : i == 2 ? vec3(0.0, 0.125, 1.0)
-                 : vec3(0.125, 0.0, 0.125);
-          return vec4(p, 0.3125);
-        }
-        if (maskType == 5) { // Slot mask
-          ivec2 ic = ivec2(fragcoord) % 4;
-          int i = ic.y * 4 + ic.x;
-          vec3 p = i == 0  ? vec3(1, 0, 1) : i == 1  ? vec3(0, 1, 0)
-                 : i == 2  ? vec3(1, 0, 1) : i == 3  ? vec3(0, 1, 0)
-                 : i == 4  ? vec3(0, 0, 1) : i == 5  ? vec3(0, 1, 0)
-                 : i == 6  ? vec3(1, 0, 0) : i == 7  ? vec3(0, 0, 0)
-                 : i == 8  ? vec3(1, 0, 1) : i == 9  ? vec3(0, 1, 0)
-                 : i == 10 ? vec3(1, 0, 1) : i == 11 ? vec3(0, 1, 0)
-                 : i == 12 ? vec3(1, 0, 0) : i == 13 ? vec3(0, 0, 0)
-                 : i == 14 ? vec3(0, 0, 1) : vec3(0, 1, 0);
-          return vec4(p, 0.375);
-        }
-        return vec4(0.5);
-      }
-
-      vec3 applyMask(vec3 linearColor, vec2 fragcoord) {
-        vec4 m = generateMask(fragcoord);
-        linearColor *= mix(m.w, 1.0, maskBrightness);
-        // Brightness the subpixels need to keep 100% output while masked
-        vec3 target = linearColor / m.w;
-        vec3 primary = clamp(target, 0.0, 1.0);
-        // Overflow bleeds into the other subpixels so highlights stay bright
-        vec3 highlights = (target - primary) / (1.0 / m.w - 1.0);
-        primary *= m.rgb;
-        primary += highlights * (1.0 - m.rgb);
-        return primary;
+      float random(vec2 st) {
+        return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
       }
 
       void main() {
-        vec2 uv = warp(vUv);
-        uv.x += cos(time * 6.28318530718 * 15.0) * wobbleStrength / 8192.0;
+        // --- 1. per-row interference -------------------------------------
+        // Keying the noise on the rounded row (not the fragment) is what
+        // makes it read as a tracking fault rather than as static.
+        float row = floor(vUv.y * 1024.0);
+        float r = random(vec2(0.0, row) + time * 0.001);
+        // Rare rows tear much further, the reference's r *= 3.0 spike.
+        r *= r > 0.995 ? 3.0 : 1.0;
 
-        vec3 col;
-        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-          col = vec3(0.0); // outside the curved glass
-        } else {
-          col = scanlines(uv);
-          col = applyMask(col, gl_FragCoord.xy);
+        vec2 uv = vUv;
+        uv.x += INTERFERENCE * 2.0 / 1024.0 * r;
+
+        // --- 2. curvature -------------------------------------------------
+        uv = curveRemapUV(uv);
+
+        // --- 3. the sweeping scan band ------------------------------------
+        // Runs for SCAN_CYCLE then parks off-screen for the remainder of the
+        // period, so it passes roughly every twelve seconds instead of
+        // strobing continuously.
+        float scanCycleTime = mod(time * SCAN_SPEED, SCAN_CYCLE + 50.0);
+        float scanPos = scanCycleTime < SCAN_CYCLE ? scanCycleTime / SCAN_CYCLE : 1.0;
+        // Rational stand-in for exp(-y*y): same bell, no transcendental.
+        float y = (vUv.y - scanPos) * 160.0;
+        float band = 1.0 / (1.0 + y * y * 0.5 + y * y * y * y * 0.125);
+        uv.x += band * SCAN_DISTORTION;
+
+        // --- 4. the one and only texture fetch ----------------------------
+        vec3 src = vec3(0.0);
+        if (uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0) {
+          // The render target stores sRGB-encoded values but the scene pass
+          // this mesh draws into is linear (see render/Renderer.tsx), so it
+          // has to be decoded exactly once. 2.2 rather than the exact
+          // piecewise transfer: one pow, and the duotone below discards the
+          // precision that would buy anyway.
+          src = pow(texture2D(map, uv).rgb, vec3(2.2));
         }
-        col = linearToSrgb(clamp(col, 0.0, 1.0));
 
-        // Vignette carried over from the previous shader
-        float vig = smoothstep(0.85, 0.35, length(vUv - 0.5));
-        col *= mix(0.22, 1.0, vig);
+        // --- 5. duotone phosphor ------------------------------------------
+        // Weighted toward red/green the way the reference's luma is, so the
+        // cyan UI on the menu scene keeps its punch instead of going muddy.
+        float luma = dot(src, vec3(0.5, 0.4, 0.1));
+        vec3 color = mix(uTintLow, uTintHigh, smoothstep(0.1, 0.75, luma))
+                   * luma * uBrightness;
 
-        fragColor = vec4(col, 1.0);
+        // The scan band itself brightens what it crosses.
+        color += band * 0.35 * uTintHigh;
+
+        // --- 6. power-on wipe ---------------------------------------------
+        float currentLine = floor(vUv.y / REVEAL_LINE);
+        float revealLine = floor(uReveal / REVEAL_LINE);
+        color *= step(currentLine, revealLine);
+
+        // --- 7. vignette, grain, black lift, scanlines --------------------
+        vec2 v = vUv * 2.0 - 1.0;
+        color *= 1.0 - min(1.0, dot(v, v) * VIGNETTE);
+
+        color += (random(gl_FragCoord.xy * 0.002 + time) - 0.5) * GRAIN;
+
+        // Unlit phosphor is never truly black; a faint tint in the shadows
+        // is most of what sells the tube.
+        color += uTintLow * BLACK_LIFT * (1.0 - smoothstep(0.0, 0.15, luma));
+
+        float scan = 0.5 + 0.5 * cos(vUv.y * SCANLINE_COUNT * 6.28318530718);
+        color *= 1.0 - SCANLINE_DEPTH * scan;
+
+        gl_FragColor = vec4(max(color, 0.0), 1.0);
       }
     `,
   });
+  return material;
 }
