@@ -26,7 +26,17 @@ const HTML_WIDTH_PX = 300;
 // Same role for the arcade's screen. Smaller because that screen is smaller
 // in world units (0.748m vs the monitor's 1.12m), keeping roughly the same
 // CSS-px-per-metre density on both.
-const ARCADE_HTML_WIDTH_PX = 220;
+// Pixel width of the Html layer pinned to the arcade glass. This is the
+// RESOLUTION the embedded lab renders at, not its on-screen size —
+// ArcadeScreenHtml derives distanceFactor as (worldWidth * canvasHeight) /
+// this, so the two cancel and the projected size is unchanged either way.
+//
+// It was 220, which was ruinous: the labs render a 1280x800 desktop site
+// scaled to fit, so at 220 the site was drawn at 17% and then magnified back
+// up by distanceFactor — an upscaled 220px image is what "too tiny to read"
+// actually was. At 1280 the site renders very nearly 1:1 and the magnification
+// is gone.
+const ARCADE_HTML_WIDTH_PX = 1280;
 
 // Wireframe was used to hand-fit SCREEN_WORLD_SIZE/POSITION against the
 // monitor's actual bezel (see screenAnchor.ts) — dialed in now, off.

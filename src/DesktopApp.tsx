@@ -252,7 +252,11 @@ export default function DesktopApp() {
                     {/* Above the glass layers, so it stays clickable */}
                     <button
                       onClick={() => setActiveLab(null)}
-                      style={{ position: "absolute", top: 4, right: 4, zIndex: 2, fontFamily: "monospace", fontSize: 9, background: "rgba(15,0,12,0.85)", color: "#f2bfe9", border: "1px solid rgba(242,191,233,0.4)", padding: "2px 7px", cursor: "pointer", letterSpacing: 1 }}
+                      // Sized against the Html layer's own pixel width (ARCADE_HTML_WIDTH_PX,
+                      // now 1280), which is close to 1:1 with real screen pixels — so these
+                      // are ordinary CSS sizes. At the old 220 the layer was magnified ~6x
+                      // and a 9px glyph landed on screen as a 59px button.
+                      style={{ position: "absolute", top: 12, right: 12, zIndex: 2, fontFamily: "monospace", fontSize: 16, background: "rgba(15,0,12,0.85)", color: "#f2bfe9", border: "1px solid rgba(242,191,233,0.4)", padding: "6px 12px", cursor: "pointer", letterSpacing: 1 }}
                     >
                       ✕
                     </button>

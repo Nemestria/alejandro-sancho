@@ -1,6 +1,10 @@
 import { Vector3 } from "three";
 import { SCREEN_WORLD_POSITION, SCREEN_WORLD_NORMAL } from "./screenAnchor";
-import { ARCADE_SCREEN_WORLD_POSITION, ARCADE_SCREEN_WORLD_NORMAL } from "./arcadeScreenAnchor";
+import {
+  ARCADE_SCREEN_WORLD_NORMAL,
+  ARCADE_SCREEN_WORLD_POSITION,
+  ARCADE_SCREEN_WORLD_SIZE,
+} from "./arcadeScreenAnchor";
 
 // Every clickable object the camera can fly in to. CameraRig looks up its
 // "close" shot here instead of hardcoding a single target — see
@@ -9,10 +13,33 @@ import { ARCADE_SCREEN_WORLD_POSITION, ARCADE_SCREEN_WORLD_NORMAL } from "./arca
 // time a new station is added.
 export type StationId = "computer" | "arcade";
 
+/**
+ * Derives the close shot's stand-off from how much of the FRAME the station's
+ * screen should fill, rather than pinning it to a fixed distance.
+ *
+ * A fixed distance cannot hold a fill target, because the fill depends on the
+ * viewport's aspect ratio: the same camera that puts the arcade glass at 85%
+ * of a 16:9 frame overflows a 4:3 one, since the screen is wider than it is
+ * tall and a narrower viewport runs out of width first. CameraRig resolves
+ * this per frame against the live aspect.
+ */
+export interface CloseFill {
+  /** The screen's metric size, [width, height]. */
+  size: [number, number];
+  /** Target fraction of the frame on whichever axis is tighter. */
+  fraction: number;
+  /** Point to back away from — the same anchor the close shot looks at. */
+  origin: Vector3;
+  /** Outward normal to back away along. */
+  normal: Vector3;
+}
+
 export interface StationShot {
   closeEye: Vector3;
   closeTarget: Vector3;
   closeFov: number;
+  /** When set, overrides closeEye's distance — see CloseFill. */
+  closeFill?: CloseFill;
   // Optional two-stage arrival: the fly-in lands on this wider shot first
   // (whole object in frame), and the close shot above only engages once the
   // station "activates" (CameraRig's stationZoomed prop — for the arcade,
@@ -46,9 +73,25 @@ const COMPUTER: StationShot = {
 // left it at ~43%, and was aimed at a guessed anchor ~0.3m off the real
 // screen, which is what pushed the glass out of frame entirely.
 const ARCADE: StationShot = {
-  closeEye: ARCADE_SCREEN_WORLD_POSITION.clone().addScaledVector(ARCADE_SCREEN_WORLD_NORMAL, 0.95),
+  // Fallback only — closeFill below supersedes this whenever CameraRig can
+  // read a viewport, which is always in practice.
+  closeEye: ARCADE_SCREEN_WORLD_POSITION.clone().addScaledVector(ARCADE_SCREEN_WORLD_NORMAL, 0.75),
   closeTarget: ARCADE_SCREEN_WORLD_POSITION.clone(),
   closeFov: 50,
+  // The labs are interactive 3D pages, so the glass has to be big enough to
+  // actually use. 0.85 leaves a thin margin of cabinet around it, which is
+  // what keeps it reading as a machine rather than as a full-page iframe.
+  //
+  // This replaced a hardcoded 0.95 stand-off that had been derived when the
+  // screen was 0.748 x 0.639. The re-modelled screen is shorter (0.838 x
+  // 0.512), so the same distance quietly dropped the fill from ~68% to ~58%.
+  // Driving it from the size means it cannot drift like that again.
+  closeFill: {
+    size: ARCADE_SCREEN_WORLD_SIZE,
+    fraction: 0.85,
+    origin: ARCADE_SCREEN_WORLD_POSITION,
+    normal: ARCADE_SCREEN_WORLD_NORMAL,
+  },
   approach: {
     eye: ARCADE_SCREEN_WORLD_POSITION.clone()
       .addScaledVector(ARCADE_SCREEN_WORLD_NORMAL, 3.2)

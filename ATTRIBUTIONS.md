@@ -19,22 +19,19 @@ most people who see the work will never open the repo. Add to both, or add to
 > "PSX Style Office Walls Pack" (https://skfb.ly/pspOz) by wooolvie is licensed
 > under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
 
-Used for the room's walls, and — reusing the same tile set — its ceiling.
-Baked into `public/ArcadeFolio.glb`.
+Used for the room's walls. Shipped as `public/WallTile.glb` and instanced
+into a room by `src/Room.tsx`, which also reuses the floor tile, turned over, as
+the ceiling.
 
 CC BY 4.0 permits modification and commercial use, and requires that credit,
 a licence link, and an indication of any changes are given. The tiles are
 re-scaled, re-lit and re-used as ceiling geometry in this project; that counts
 as a change, and is stated here.
 
-## Unresolved
+## Attribution not required
 
-These shipped before attributions were tracked and their provenance is not
-recorded. If either turns out to be CC-BY or similar, it needs an entry above
-before the site can be considered compliant.
+Confirmed by the project owner as carrying terms that do not require
+attribution, so they are recorded here only so the question is not reopened:
 
 - `public/Computer.glb`
 - `public/Adjustable Desk.glb`
-
-ARCHITECTURE.md ("Model source") notes the model was taken from a free/CC asset
-site, so an attribution obligation is likely rather than hypothetical.

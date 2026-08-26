@@ -1,7 +1,22 @@
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { MathUtils, Vector3, type PerspectiveCamera } from "three";
-import { STATIONS, type StationId } from "./stations";
+import { STATIONS, type CloseFill, type StationId } from "./stations";
+
+/**
+ * Stand-off that puts a screen of a given size at a target fraction of the frame, given the
+ * viewport aspect and vertical fov.
+ *
+ * Which axis binds depends on the aspect: a viewport wider than the screen
+ * runs out of height first, a narrower one runs out of width. Solving the
+ * binding axis for the visible height and converting that to a distance is
+ * what keeps the fill constant as the window is resized.
+ */
+function fillDistance(fill: CloseFill, fovDeg: number, aspect: number) {
+  const [w, h] = fill.size;
+  const visibleHeight = aspect >= w / h ? h / fill.fraction : w / (fill.fraction * aspect);
+  return visibleHeight / (2 * Math.tan(MathUtils.degToRad(fovDeg) / 2));
+}
 
 export type FlightPhase = "idle" | "flying" | "arrived" | "returning";
 
@@ -68,7 +83,7 @@ export default function CameraRig({
   onReturned: () => void;
   resetKey?: number;
 }) {
-  const { camera, gl, scene } = useThree();
+  const { camera, gl, scene, size } = useThree();
   const phaseRef = useRef(phase);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => {
@@ -176,9 +191,16 @@ export default function CameraRig({
     // aim at whichever of the two is currently selected.
     const shot = station ? STATIONS[station] : null;
     const useApproach = !!shot?.approach && !stationZoomed;
-    const closeEye = useApproach ? shot!.approach!.eye : shot?.closeEye ?? ESTABLISHED_EYE;
-    const closeTarget = useApproach ? shot!.approach!.target : shot?.closeTarget ?? ESTABLISHED_TARGET;
     const closeFov = useApproach ? shot!.approach!.fov : shot?.closeFov ?? ESTABLISHED_FOV;
+    // A station with a closeFill computes its stand-off from the live viewport
+    // instead of using the baked closeEye — see fillDistance above.
+    const fill = useApproach ? undefined : shot?.closeFill;
+    const closeEye = useApproach
+      ? shot!.approach!.eye
+      : fill
+        ? fill.origin.clone().addScaledVector(fill.normal, fillDistance(fill, closeFov, size.width / size.height))
+        : shot?.closeEye ?? ESTABLISHED_EYE;
+    const closeTarget = useApproach ? shot!.approach!.target : shot?.closeTarget ?? ESTABLISHED_TARGET;
 
     let baseEye = ESTABLISHED_EYE;
     let baseTarget = ESTABLISHED_TARGET;
