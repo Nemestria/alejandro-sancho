@@ -32,12 +32,14 @@ const FONT_FAMILY = '"Press Start 2P", monospace';
 // was 9x16). Square cells were the first attempt and they read as a grid of
 // tiles rather than as lines of text.
 //
-// 52x34 at 20x26 gives a 1040x884 canvas — a 1.176:1 picture, matching the
-// arcade glass's 1.17:1 face, so nothing is stretched on the way to the mesh.
+// 68x32 at 20x26 gives a 1360x832 canvas — a 1.635:1 picture, matching the
+// arcade glass's 1.637:1 face, so nothing is stretched on the way to the mesh.
+// (Was 52x34 for the 1.17:1 face the cabinet had before it was re-modelled;
+// keep these in step with ARCADE_SCREEN_WORLD_SIZE in arcadeScreenAnchor.ts.)
 export const CELL_W = 20;
 export const CELL_H = 26;
-export const COLS = 52;
-export const ROWS = 34;
+export const COLS = 68;
+export const ROWS = 32;
 
 // Press Start 2P advances exactly 1em, so setting the size to the cell WIDTH
 // makes the glyph grid and the cell grid the same grid.

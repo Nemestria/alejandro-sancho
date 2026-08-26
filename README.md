@@ -31,6 +31,7 @@ pnpm build
 - [ARCHITECTURE.md](ARCHITECTURE.md) — the technical plan, stack reasoning, how this connects to the portfolio, open decisions
 - [CHECKPOINTS.md](CHECKPOINTS.md) — phased build order with definition-of-done per phase
 - [DESIGN.md](DESIGN.md) — visual spec for the 3D scene + password terminal, ties back to the portfolio's existing Y2K design language
+- [ATTRIBUTIONS.md](ATTRIBUTIONS.md) — third-party asset credits and their licence terms (some require attribution; the app mirrors this list behind its CREDITS button)
 - [../mainRepo/CLAUDE.md](../mainRepo/CLAUDE.md) — working instructions for the portfolio project (the destination of this gateway)
 
 ## Relationship to the portfolio

@@ -26,10 +26,13 @@ import { asciify, asciiField, BG, COLS, FG, ROWS, type Screen } from "./textScre
 // those panels is derived from real state — nothing is invented filler.
 
 // --- column geometry ---------------------------------------------------------
+// Widened with the glass: the face went from 1.17:1 to 1.637:1, so the grid
+// gained 16 columns and lost 2 rows. The extra width goes to both columns —
+// the list gets room for longer titles, the description gets wider lines.
 const LEFT_X = 2;
-const LEFT_W = 27;
-const RIGHT_X = 30;
-const RIGHT_W = 20;
+const LEFT_W = 36;
+const RIGHT_X = 40;
+const RIGHT_W = 26;
 
 // --- row geometry ------------------------------------------------------------
 const TITLE_Y = 2;

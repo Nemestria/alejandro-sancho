@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useGLTF, Html, Text, Billboard } from "@react-three/drei";
 import {
-  Box3, CanvasTexture, DataTexture, Euler, MathUtils, MeshToonMaterial,
-  NearestFilter, Object3D, RedFormat, RepeatWrapping, Vector3,
-  type Group, type Material, type Mesh, type Texture,
+  Box3, Euler, MathUtils, Object3D, PropertyBinding, Vector3,
+  type Group, type Mesh, type MeshStandardMaterial, type Texture,
 } from "three";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import type { FlightPhase } from "./CameraRig";
@@ -13,7 +12,9 @@ import {
   SCREEN_WORLD_SIZE,
 } from "./screenAnchor";
 import { createArcadeScreenMaterial } from "./arcadeScreenMaterial";
+import Room from "./Room";
 import {
+  ARCADE_SCREEN_WORLD_NORMAL,
   ARCADE_SCREEN_WORLD_POSITION,
   ARCADE_SCREEN_WORLD_ROTATION_Y,
   ARCADE_SCREEN_WORLD_SIZE,
@@ -84,42 +85,6 @@ function WelcomeSign({ text }: { text: string }) {
         </div>
       </Html>
     </Billboard>
-  );
-}
-
-// Office tile floor — a single mesh with a procedural repeating-tile
-// texture, replacing the old solid-floor-plane + drei <Grid> combo. Those
-// were two separate planes ~0.002 units apart, which z-fought (flickered)
-// at distance since depth-buffer precision drops off with distance in a
-// perspective projection; one textured mesh has no second plane to fight.
-function OfficeFloor() {
-  const texture = useMemo(() => {
-    const size = 128;
-    const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d")!;
-    // Grout color fills the whole tile; the inset tile face leaves a
-    // uniform grout line visible on every edge when repeated.
-    ctx.fillStyle = "#23272b";
-    ctx.fillRect(0, 0, size, size);
-    ctx.fillStyle = "#3a4046";
-    const inset = 5;
-    ctx.fillRect(inset, inset, size - inset * 2, size - inset * 2);
-
-    const tex = new CanvasTexture(canvas);
-    tex.wrapS = tex.wrapT = RepeatWrapping;
-    // High repeat count on the 200x200 floor plane = small tiles (~1.4
-    // world units each), office-tile scale rather than a warehouse grid.
-    tex.repeat.set(140, 140);
-    return tex;
-  }, []);
-
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={[200, 200]} />
-      <meshStandardMaterial map={texture} roughness={0.95} />
-    </mesh>
   );
 }
 
@@ -195,7 +160,10 @@ function Computer({
 
 interface ArcadeNodes {
   scene: Group;
-  nodes: {
+  // Indexed as well as named: the screen mesh's name is not stable across
+  // Blender re-exports (it arrived as "ArcadeScreen", came back as
+  // "Arcade.001"), so it is resolved by lookup rather than by property.
+  nodes: Record<string, Mesh> & {
     Arcade: Mesh;
     CoinInserter: Mesh;
     Joystick: Mesh;
@@ -203,9 +171,44 @@ interface ArcadeNodes {
     B_button: Mesh;
     X_button: Mesh;
     Y_button: Mesh;
-    ArcadeScreen: Mesh;
   };
 }
+
+// The cabinet's own nodes, by root name. A re-export of the model brought a
+// TV, a PS1, controllers and other room props in alongside it; they belong to
+// no station and, left in, they stretch the model's bounding box from 2.1m to
+// 8.2m wide. That moves the auto-fit's centre and lands the cabinet ~1.5m off
+// ARCADE_POSITION, dragging the measured screen anchor (arcadeScreenAnchor.ts)
+// off with it.
+//
+// An allowlist rather than a blocklist on purpose: a clean export, where every
+// root already IS part of the cabinet, hides nothing and fits identically.
+// Written as Blender spells them, then normalised the same way three does.
+// GLTFLoader puts every node name through PropertyBinding.sanitizeNodeName,
+// which STRIPS "." and turns whitespace into "_" — so Blender's "Arcade.001"
+// reaches us as "Arcade001". Normalising here rather than hardcoding the
+// mangled spelling keeps these readable against the model, and keeps the two
+// spellings from drifting apart.
+const CABINET_ROOTS = new Set(
+  [
+    "Arcade",
+    "Arcade.001",
+    "ArcadeScreen",
+    "Empty",
+    "CoinInserter",
+    "Joystick",
+    "A_button",
+    "B_button",
+    "X_button",
+    "Y_button",
+    "Fake Light (87ae4a87) Empty",
+  ].map((n) => PropertyBinding.sanitizeNodeName(n)),
+);
+
+// Names the screen mesh has shipped under, oldest first.
+const SCREEN_NODE_NAMES = ["ArcadeScreen", "Arcade.001"].map((n) =>
+  PropertyBinding.sanitizeNodeName(n),
+);
 
 // Second station, alongside Computer/ScreenPlane — a coin-op cabinet whose
 // screen will (Phase 5 of the arcade plan, not yet wired here) use a
@@ -234,6 +237,24 @@ function ArcadeSpot() {
     o.position.set(ARCADE_POSITION[0], 0.9, ARCADE_POSITION[2]);
     return o;
   }, []);
+
+  // The overhead spot alone cannot light the cabinet's artwork: it hangs at
+  // y=6 pointing almost straight down, while the front of the cabinet is a
+  // VERTICAL face. N·L there is near zero, so the panel stayed black no
+  // matter how far the intensity was pushed — the light was landing on the
+  // top of the cabinet, not its face.
+  //
+  // This fill sits out in front instead, on the screen's own normal, so it
+  // strikes the artwork close to head-on. Placed off the measured anchor
+  // rather than by hand so it follows the cabinet if the model moves again.
+  const fillPosition = useMemo(
+    () =>
+      ARCADE_SCREEN_WORLD_POSITION.clone()
+        .addScaledVector(ARCADE_SCREEN_WORLD_NORMAL, 2.2)
+        .setY(2.6),
+    [],
+  );
+
   return (
     <>
       <primitive object={target} />
@@ -246,6 +267,26 @@ function ArcadeSpot() {
         decay={2}
         color="#f2bfe9"
         castShadow
+        target={target}
+      />
+      {/* Wide, soft, no shadow map — this is for legibility, not drama, and
+          a second shadow-casting spot on the same object only produces
+          fighting shadow terminators.
+
+          Intensity is sized, not guessed. three's punctual lights fall off as
+          intensity/d^2, so the desk spot (120 at ~5.1m, striking the floor
+          head-on) delivers ~4.6. This sits ~2.5m out, so 22 delivers ~3.4 —
+          just under the desk's level, which keeps the arcade the dimmer of
+          the two stations while still reading. a distance cap of 6 stops it spilling
+          onto the desk behind it. */}
+      <spotLight
+        position={fillPosition}
+        angle={0.7}
+        penumbra={0.9}
+        intensity={22}
+        distance={6}
+        decay={2}
+        color="#ffe4f6"
         target={target}
       />
     </>
@@ -295,52 +336,61 @@ function Arcade({
 }) {
   const { scene, nodes } = useGLTF("/ArcadeFolio.glb") as unknown as ArcadeNodes;
 
-  // Toon look for the whole cabinet, per direction. A 3-step gradient map
-  // gives the classic hard-banded cel shading (without one, MeshToonMaterial
-  // is a flat two-tone). The model's coloring lives in vertex colors (the
-  // GLB's shared material is otherwise default), so vertexColors carries
-  // straight over.
-  const gradientMap = useMemo(() => {
-    const tex = new DataTexture(new Uint8Array([90, 165, 235]), 3, 1, RedFormat);
-    tex.minFilter = NearestFilter;
-    tex.magFilter = NearestFilter;
-    tex.needsUpdate = true;
-    return tex;
-  }, []);
+  // Resolve the screen mesh by trying each name the model has used. Failing
+  // loudly here beats the four separate "cannot read property of undefined"
+  // crashes that a renamed node used to cause downstream.
+  const screenNode = useMemo(() => {
+    const found = SCREEN_NODE_NAMES.map((n) => nodes[n]).find(Boolean);
+    if (!found) {
+      throw new Error(
+        `ArcadeFolio.glb: no screen mesh found (tried ${SCREEN_NODE_NAMES.join(", ")}). ` +
+          `Nodes present: ${Object.keys(nodes).join(", ")}`,
+      );
+    }
+    return found;
+  }, [nodes]);
 
-  // The coin slot's own toon material instance, for the "click me" pulse —
-  // emissive on the material itself, NOT a light in front of it (a light
-  // washed the whole control panel out, see git history).
-  const slotMatRef = useRef<MeshToonMaterial | null>(null);
+  // The model's own materials are used exactly as authored — no code-side
+  // override. An earlier version swapped every mesh to MeshToonMaterial for a
+  // cel look; once the model became UV-baked rather than vertex-coloured that
+  // reinterpreted (and largely discarded) the texturing work done in Blender.
+  // Lighting carries the look instead — see ArcadeSpot.
+  //
+  // The coin slot is the one exception, and it is a CLONE rather than a
+  // replacement: CoinInserter shares one material with six other meshes (the
+  // cabinet body, the joystick and all four buttons), so driving emissive on
+  // the shared instance would pulse the entire cabinet. The clone inherits
+  // every authored property and adds only the glow.
+  const slotMatRef = useRef<MeshStandardMaterial | null>(null);
 
   useEffect(() => {
-    const swapped: Array<[Mesh, Material | Material[]]> = [];
-    scene.traverse((o) => {
-      const m = o as Mesh;
-      if (!m.isMesh) return;
-      swapped.push([m, m.material]);
-      const toon = new MeshToonMaterial({ vertexColors: true, gradientMap });
-      if (m.name === "CoinInserter") {
-        toon.emissive.set("#f2bfe9");
-        toon.emissiveIntensity = 0;
-        slotMatRef.current = toon;
-      }
-      m.material = toon;
-    });
+    const slot = nodes.CoinInserter;
+    if (!slot) return;
+    const original = slot.material as MeshStandardMaterial;
+    const pulse = original.clone();
+    pulse.emissive.set("#f2bfe9");
+    pulse.emissiveIntensity = 0;
+    slot.material = pulse;
+    slotMatRef.current = pulse;
     return () => {
       slotMatRef.current = null;
-      swapped.forEach(([m, original]) => {
-        (m.material as Material).dispose();
-        m.material = original;
-      });
+      slot.material = original;
+      pulse.dispose();
     };
-  }, [scene, gradientMap]);
+  }, [nodes]);
 
   // Same auto-fit-by-bounding-box approach as Computer() below — scale to a
   // target height, then position so the model's own base sits on the floor
   // at ARCADE_POSITION rather than guessing a hardcoded scale per model.
   const { scale, position } = useMemo(() => {
-    const box = new Box3().setFromObject(scene);
+    // Measured over the cabinet's own roots, not the whole file — see
+    // CABINET_ROOTS. Falls back to the full model if a future export renames
+    // everything, which is wrong-but-visible rather than an empty box.
+    const box = new Box3();
+    scene.children.forEach((c) => {
+      if (CABINET_ROOTS.has(c.name)) box.expandByObject(c);
+    });
+    if (box.isEmpty()) box.setFromObject(scene);
     const size = new Vector3();
     box.getSize(size);
     const s = size.y > 0 ? ARCADE_TARGET_HEIGHT / size.y : 1;
@@ -355,6 +405,15 @@ function Arcade({
         ARCADE_POSITION[2] - rotatedCenter.z * s,
       ] as [number, number, number],
     };
+  }, [scene]);
+
+  // Hide anything that is not the cabinet. Done here rather than by editing
+  // the GLB so a corrected re-export needs no code change — the allowlist just
+  // stops matching anything and nothing is hidden.
+  useEffect(() => {
+    const hidden = scene.children.filter((c) => c.visible && !CABINET_ROOTS.has(c.name));
+    hidden.forEach((c) => (c.visible = false));
+    return () => hidden.forEach((c) => (c.visible = true));
   }, [scene]);
 
   // Coin-slot center in group-local space (= the loader scene's root
@@ -454,7 +513,7 @@ function Arcade({
   // across the visible face. The box's thin side faces get edge-smeared
   // texels — invisible at the bezel, acceptable.
   const screenGeom = useMemo(() => {
-    const g = nodes.ArcadeScreen.geometry.clone();
+    const g = screenNode.geometry.clone();
     g.computeBoundingBox();
     const bb = g.boundingBox!;
     const pos = g.attributes.position;
@@ -470,7 +529,7 @@ function Arcade({
     }
     uv.needsUpdate = true;
     return g;
-  }, [nodes]);
+  }, [screenNode]);
 
   // The display shader for the live screen (curvature, interference, scan
   // band, duotone phosphor — see arcadeScreenMaterial.ts). One instance for
@@ -544,9 +603,9 @@ function Arcade({
   // Hide the baked screen mesh while the live surface is showing. Also hide
   // when a lab is active — the Html iframe sits in front of everything.
   useEffect(() => {
-    nodes.ArcadeScreen.visible = !screenOn && !labContent;
-    return () => { nodes.ArcadeScreen.visible = true; };
-  }, [screenOn, labContent, nodes]);
+    screenNode.visible = !screenOn && !labContent;
+    return () => { screenNode.visible = true; };
+  }, [screenOn, labContent, screenNode]);
 
   return (
     <group
@@ -623,9 +682,9 @@ function Arcade({
           coplanar surfaces don't z-fight. */}
       {!screenOn && (
         <mesh
-          geometry={nodes.ArcadeScreen.geometry}
-          position={nodes.ArcadeScreen.position}
-          quaternion={nodes.ArcadeScreen.quaternion}
+          geometry={screenNode.geometry}
+          position={screenNode.position}
+          quaternion={screenNode.quaternion}
         >
           <meshBasicMaterial
             color="#f2bfe9"
@@ -644,8 +703,8 @@ function Arcade({
       {screenOn && screenTexture && !labContent && (
         <mesh
           geometry={screenGeom}
-          position={nodes.ArcadeScreen.position}
-          quaternion={nodes.ArcadeScreen.quaternion}
+          position={screenNode.position}
+          quaternion={screenNode.quaternion}
         >
           <primitive object={screenMat} attach="material" />
         </mesh>
@@ -831,7 +890,11 @@ export default function Scene({
   return (
     <>
       <color attach="background" args={["#000000"]} />
-      <fog attach="fog" args={["#000000", 8, 30]} />
+      {/* Pushed back for the room. At the old 8->30 the fade began before
+          the near wall and the far corner was solid black — the values were
+          chosen when there was no far surface to lose, only empty void to
+          hide. 14->46 keeps depth falloff without eating the walls. */}
+      <fog attach="fog" args={["#000000", 14, 46]} />
 
       <ambientLight intensity={0.16} />
       <spotLight
@@ -847,7 +910,7 @@ export default function Scene({
       />
       <ArcadeSpot />
 
-      <OfficeFloor />
+      <Room />
 
       <Desk />
       <Note />

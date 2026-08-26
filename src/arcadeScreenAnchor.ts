@@ -17,21 +17,32 @@ import { Vector3 } from "three";
 // Re-derive (steps above) any time the arcade group's position/rotation/scale
 // changes — these are not kept in sync automatically.
 //
-// Measured 2026-08-21 against ARCADE_POSITION (-2.6, 0, 0.6) /
-// ARCADE_ROTATION_Y (0.6 + PI) with the group's auto-fit scale at 0.516.
-// Face corners came out at (-2.140, 1.688, 0.618), (-2.757, 1.688, 1.040)
-// and (-2.140, 1.049, 0.618), giving 0.748 x 0.639 m.
+// Re-derived 2026-08-26 after the model was re-exported from Blender. That
+// export renamed the screen mesh (ArcadeScreen -> Arcade.001), reshaped it
+// (59 verts to 12, bevels gone) and widened the face from 1.170:1 to 1.637:1.
+// It also brought unrelated room props into the file; Scene.tsx's CABINET_ROOTS
+// excludes them from the auto-fit, which is what keeps the scale at 0.5157 and
+// these numbers meaningful — measuring over the whole file instead moves the
+// screen to (-4.134, 1.340, 1.101), 1.5m off.
 //
-// POSITION is the box CENTRE, not that front face. The mesh is a 0.51m-deep
-// box, so its front face sits ~0.26m proud of centre — level with the
-// joystick/button plane (those measure z~0.79-0.92). Anchoring there aims
-// the camera at the control deck instead of the glass, and floats any Html
-// overlay in front of the cabinet. The live RenderTexture screen uses the
-// same geometry at the same transform, so centre is what both should share.
-export const ARCADE_SCREEN_WORLD_POSITION = new Vector3(-2.59, 1.369, 0.62);
+// Derivation was validated by replaying it against the PREVIOUS model, where
+// it reproduced that version's committed constants exactly.
+//
+// Measured against ARCADE_POSITION (-2.6, 0, 0.6) / ARCADE_ROTATION_Y
+// (0.6 + PI) with the cabinet-only auto-fit scale at 0.5157.
+//
+// POSITION is the box CENTRE, not that front face. The mesh is a box (0.51m
+// deep before the re-export, 0.27m after), so its front face sits proud of
+// centre — level with the joystick/button plane. Anchoring there aims the
+// camera at the control deck instead of the glass, and floats any Html overlay
+// in front of the cabinet. The live screen mesh uses the same geometry at the
+// same transform, so centre is what both should share.
+export const ARCADE_SCREEN_WORLD_POSITION = new Vector3(-2.562, 1.331, 0.658);
 // Local -Y through the mesh's world rotation. Lands on (sin 0.6, 0, cos 0.6),
 // which is what the earlier placeholder guessed — the normal was the one
 // constant it got right; position and size were both off.
 export const ARCADE_SCREEN_WORLD_NORMAL = new Vector3(Math.sin(0.6), 0, Math.cos(0.6));
 export const ARCADE_SCREEN_WORLD_ROTATION_Y = 0.6;
-export const ARCADE_SCREEN_WORLD_SIZE: [number, number] = [0.748, 0.639];
+// 1.637:1 since the re-export — the glass went from squarish to widescreen,
+// which is why textScreen.ts's character grid was repacked to match.
+export const ARCADE_SCREEN_WORLD_SIZE: [number, number] = [0.838, 0.512];

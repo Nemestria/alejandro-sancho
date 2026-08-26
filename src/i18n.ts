@@ -20,6 +20,8 @@ export const translations: Record<
     effectsOn: string;
     effectsOff: string;
     resetCamera: string;
+    credits: string;
+    creditsTitle: string;
     controls: { hint: string; title: string; clickComputer: string; password: string; back: string; crt: string; dismiss: string; };
     arcade: { insertCoin: string; labComingSoon: string; labBackHint: string; menuHint: string; };
   }
@@ -36,6 +38,8 @@ export const translations: Record<
     effectsOn: "CRT FX: ON",
     effectsOff: "CRT FX: OFF",
     resetCamera: "⟳ RESET VIEW",
+    credits: "CREDITS",
+    creditsTitle: "ASSET CREDITS",
     controls: { hint: "CONTROLS", title: "CONTROLS", clickComputer: "click the computer to approach", password: "check the note on the desk", back: "return to the scene", crt: "toggle vintage lens effect", dismiss: "[ESC or click to close]" },
     arcade: { insertCoin: "INSERT COIN", labComingSoon: "UNDER CONSTRUCTION", labBackHint: "[ESC] back to the arcade", menuHint: "↑/↓ select · ENTER confirm" },
   },
@@ -51,6 +55,8 @@ export const translations: Record<
     effectsOn: "EFECTOS CRT: SÍ",
     effectsOff: "EFECTOS CRT: NO",
     resetCamera: "⟳ RESTABLECER VISTA",
+    credits: "CRÉDITOS",
+    creditsTitle: "CRÉDITOS DE RECURSOS",
     controls: { hint: "CONTROLES", title: "CONTROLES", clickComputer: "haz clic en el ordenador para acercarte", password: "revisa la nota encima del escritorio", back: "volver a la escena", crt: "activar/desactivar efecto de lente retro", dismiss: "[ESC o clic para cerrar]" },
     arcade: { insertCoin: "INSERTA UNA MONEDA", labComingSoon: "EN CONSTRUCCIÓN", labBackHint: "[ESC] volver al arcade", menuHint: "↑/↓ elegir · ENTER confirmar" },
   },
@@ -66,6 +72,8 @@ export const translations: Record<
     effectsOn: "EFECTES CRT: SÍ",
     effectsOff: "EFECTES CRT: NO",
     resetCamera: "⟳ RESTABLIR VISTA",
+    credits: "CRÈDITS",
+    creditsTitle: "CRÈDITS DE RECURSOS",
     controls: { hint: "CONTROLS", title: "CONTROLS", clickComputer: "clica a l'ordinador per apropar-te", password: "revisa la nota sobre l'escriptori", back: "tornar a l'escena", crt: "activar/desactivar efecte de lent retro", dismiss: "[ESC o clic per tancar]" },
     arcade: { insertCoin: "INSEREIX UNA MONEDA", labComingSoon: "EN CONSTRUCCIÓ", labBackHint: "[ESC] tornar a l'arcade", menuHint: "↑/↓ triar · ENTER confirmar" },
   },

@@ -6,6 +6,7 @@ import PasswordTerminal from "./PasswordTerminal";
 import ScreenFlash from "./ScreenFlash";
 import LanguageGate from "./LanguageGate";
 import CrtOverlay from "./CrtOverlay";
+import { Credits } from "./Credits";
 import Renderer, { type GradePhase } from "./render/Renderer";
 import { translations, type Lang } from "./i18n";
 import { PORTFOLIO_BASE_URL } from "./portfolioUrl";
@@ -310,6 +311,8 @@ export default function DesktopApp() {
           >
             {fxEnabled ? t.effectsOn : t.effectsOff}
           </button>
+          {/* Attribution is a licence term, not a nicety — see ATTRIBUTIONS.md. */}
+          <Credits t={t} />
         </div>
 
         {!lang && <LanguageGate onDone={setLang} />}
