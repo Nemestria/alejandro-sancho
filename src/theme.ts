@@ -39,17 +39,34 @@ function apply(t: Theme) {
   root.setProperty("--paper", t.paper);
 }
 
-let current = load();
+// `saved` is the visitor's choice (made in the ASCII console); `override` lets
+// a view pin a theme without touching it — the 3D scene is always white.
+let saved = load();
+let override: Theme | null = null;
+let current = saved;
 apply(current); // at import time, so the first paint is already themed
 const listeners = new Set<() => void>();
 
-export function setTheme(id: string) {
-  const next = THEMES.find((t) => t.id === id);
-  if (!next || next === current) return;
+function refresh() {
+  const next = override ?? saved;
+  if (next === current) return;
   current = next;
   apply(next);
-  try { localStorage.setItem(KEY, id); } catch { /* storage blocked: session-only */ }
   listeners.forEach((l) => l());
+}
+
+export function setTheme(id: string) {
+  const next = THEMES.find((t) => t.id === id);
+  if (!next || next === saved) return;
+  saved = next;
+  try { localStorage.setItem(KEY, id); } catch { /* storage blocked: session-only */ }
+  refresh();
+}
+
+/** Pin a theme for the current view without saving it; null releases it. */
+export function overrideTheme(id: string | null) {
+  override = id ? THEMES.find((t) => t.id === id) ?? null : null;
+  refresh();
 }
 
 export function useTheme(): Theme {

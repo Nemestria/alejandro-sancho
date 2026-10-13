@@ -1,13 +1,13 @@
 import { Canvas } from "@react-three/fiber";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Scene from "./Scene";
 import CameraRig, { type FlightPhase } from "./CameraRig";
 import PasswordTerminal from "./PasswordTerminal";
 import ScreenFlash from "./ScreenFlash";
 import LanguageGate from "./LanguageGate";
 import { FONT_BODY, FONT_DISPLAY } from "./fonts";
-import { Button, Panel, ThemePicker } from "./ui";
-import { useTheme } from "./theme";
+import { Button, Panel } from "./ui";
+import { overrideTheme, useTheme } from "./theme";
 import { useFx } from "./crt/fx";
 import { Credits } from "./Credits";
 import Renderer, { type GradePhase } from "./render/Renderer";
@@ -107,6 +107,11 @@ function SiteFrame({
 
 export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: () => void }) {
   const theme = useTheme();
+  // Colour themes are a console-only option: the 3D scene is always white.
+  useLayoutEffect(() => {
+    overrideTheme("white");
+    return () => overrideTheme(null);
+  }, []);
   const [phase, setPhase] = useState<FlightPhase>("idle");
   // Which station the camera is flying toward/at/back from — stays set
   // through "returning" (CameraRig needs it to lerp back from the right
@@ -284,7 +289,6 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
         )}
 
         <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8, alignItems: "center", zIndex: 11 }}>
-          <ThemePicker />
           {phase === "idle" && (
             <Button onClick={() => setCamResetKey(k => k + 1)}>{t.resetCamera}</Button>
           )}
