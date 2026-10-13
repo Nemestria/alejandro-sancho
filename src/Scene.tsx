@@ -11,7 +11,8 @@ import {
   SCREEN_WORLD_ROTATION_Y,
   SCREEN_WORLD_SIZE,
 } from "./screenAnchor";
-import { createArcadeScreenMaterial } from "./arcadeScreenMaterial";
+import { createArcadeScreenMaterial, setArcadePhosphor } from "./arcadeScreenMaterial";
+import { useTheme } from "./theme";
 import Room from "./Room";
 import { FONT_DISPLAY } from "./fonts";
 import {
@@ -541,6 +542,8 @@ function Arcade({
   // band, duotone phosphor — see arcadeScreenMaterial.ts). One instance for
   // the component's lifetime; the picture is bound into uniforms.map below.
   const screenMat = useMemo(() => createArcadeScreenMaterial(), []);
+  const theme = useTheme();
+  useEffect(() => setArcadePhosphor(screenMat, theme.tint), [screenMat, theme.tint]);
   useEffect(() => () => screenMat.dispose(), [screenMat]);
   useEffect(() => {
     screenMat.uniforms.map.value = screenTexture ?? null;

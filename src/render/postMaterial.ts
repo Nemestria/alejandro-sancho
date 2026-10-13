@@ -1,4 +1,5 @@
 import { Color, NoBlending, ShaderMaterial, Vector2 } from "three";
+import { CRT_GLSL } from "../crt/glsl";
 
 // The single fullscreen pass that everything the 3D canvas draws goes
 // through. It replaces the old three-layer stack:
@@ -87,19 +88,15 @@ export function createPostMaterial() {
 
       varying vec2 vUv;
 
-      const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+      ${CRT_GLSL}
 
-      // Barrel warp. k > 0 pushes the image out at the edges (fisheye).
-      vec2 warp(vec2 uv, float k) {
-        vec2 c = uv - 0.5;
-        return c * (1.0 + k * dot(c, c)) + 0.5;
-      }
+      const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 
       // One channel, warped by its own strength, black outside the frame.
       // The bounds test replaces clamp-to-edge smearing at the corners,
       // which the old LensDistortion pass left behind.
       float sampleChannel(vec2 uv, float k, int channel) {
-        vec2 w = warp(uv, k);
+        vec2 w = crtWarp(uv, k);
         if (w.x < 0.0 || w.x > 1.0 || w.y < 0.0 || w.y > 1.0) return 0.0;
         vec3 c = texture2D(uMain, w).rgb;
         return channel == 0 ? c.r : channel == 1 ? c.g : c.b;
@@ -129,10 +126,6 @@ export function createPostMaterial() {
         // GLSL's column-major storage lines up without transposing.
         color = RRTAndODTFit(color * IN);
         return clamp(color * OUT, 0.0, 1.0);
-      }
-
-      float hash(vec2 p) {
-        return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453123);
       }
 
       // 4x4 ordered (Bayer) threshold, built by nesting the 2x2 pattern
@@ -184,22 +177,15 @@ export function createPostMaterial() {
           color = clamp(color, 0.0, 1.0);
         }
 
-        // Scanlines. The pitch is locked to 3 device pixels: a cosine with a
-        // 3px period is safely above the Nyquist limit of the 1px fragment
-        // grid, so it cannot alias. The old CSS version used a hard 1px-on,
-        // 2px-off gradient, which landed ON the pixel grid and crawled --
-        // that shimmer was most of the "noisy" complaint.
-        float line = 0.5 + 0.5 * cos(vUv.y * uResolution.y * 2.0943951);
-        color *= 1.0 - uScanline * line;
+        // Scanlines at the shared device-pixel pitch (crt/glsl.ts) — never
+        // aliases, unlike the old CSS 1px-on/2px-off gradient that crawled.
+        color *= 1.0 - uScanline * crtScan(gl_FragCoord.y);
 
         // Film grain, at the reference's restraint (it uses 0.01 opacity;
         // the old overlay had none and leaned on the SVG filter instead).
-        float grain = hash(gl_FragCoord.xy + fract(uTime) * 137.0) - 0.5;
-        color += grain * uNoise;
+        color += crtGrain(gl_FragCoord.xy, uTime) * uNoise;
 
-        // Vignette, radial on the unwarped uv so it stays circular.
-        float d = length(vUv - 0.5);
-        color *= 1.0 - uVignette * smoothstep(0.35, 0.80, d);
+        color *= crtVignette(vUv, uVignette);
 
         gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 

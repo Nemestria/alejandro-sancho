@@ -1,4 +1,8 @@
 import { Color, ShaderMaterial } from "three";
+import { CRT_GLSL } from "./crt/glsl";
+import { CRT_PRESETS } from "./crt/params";
+
+const TUBE = CRT_PRESETS.tube;
 
 // The arcade screen's display shader.
 //
@@ -22,7 +26,7 @@ import { Color, ShaderMaterial } from "three";
 //
 //   1. interference  — per-row horizontal jitter, so the picture never sits
 //                      perfectly still (random() keyed on the row + time)
-//   2. curveRemapUV  — barrel curvature, black outside the glass
+//   2. crtWarp       — barrel curvature, black outside the glass
 //   3. scan band     — a bright line sweeping down every ~12s, dragging a
 //                      small horizontal displacement with it
 //   4. duotone       — the sampled colour is reduced to luma and remapped
@@ -69,37 +73,30 @@ export function createArcadeScreenMaterial() {
 
       varying vec2 vUv;
 
-      #define CURVE            0.055
+      ${CRT_GLSL}
+
+      // Strengths come from CRT_PRESETS.tube (crt/params.ts).
+      #define LENS             ${TUBE.lens.toFixed(4)}
+      #define SCANLINE_DEPTH   ${TUBE.scan.toFixed(4)}
+      #define GRAIN            ${TUBE.grain.toFixed(4)}
+      #define VIGNETTE         ${TUBE.vignette.toFixed(4)}
+      // The cabinet's own, not shared: scanlines here ride the texture's uv
+      // (a mesh viewed at any distance), not the device-pixel grid.
       #define SCANLINE_COUNT   240.0
-      #define SCANLINE_DEPTH   0.30
-      #define GRAIN            0.014
       #define INTERFERENCE     0.35
       #define BLACK_LIFT       0.055
-      #define VIGNETTE         0.22
       #define REVEAL_LINE      0.02
 
       #define SCAN_SPEED       5.0
       #define SCAN_CYCLE       10.0
       #define SCAN_DISTORTION  0.003
 
-      // Barrel curvature — the reference's curveRemapUV verbatim.
-      vec2 curveRemapUV(vec2 uv) {
-        uv = uv * 2.0 - 1.0;
-        vec2 offset = abs(uv.yx) / vec2(5.0, 5.0);
-        uv = uv + uv * offset * offset * CURVE;
-        return uv * 0.5 + 0.5;
-      }
-
-      float random(vec2 st) {
-        return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
-      }
-
       void main() {
         // --- 1. per-row interference -------------------------------------
         // Keying the noise on the rounded row (not the fragment) is what
         // makes it read as a tracking fault rather than as static.
         float row = floor(vUv.y * 1024.0);
-        float r = random(vec2(0.0, row) + time * 0.001);
+        float r = crtHash(vec2(0.0, row) + time * 0.001);
         // Rare rows tear much further, the reference's r *= 3.0 spike.
         r *= r > 0.995 ? 3.0 : 1.0;
 
@@ -107,7 +104,7 @@ export function createArcadeScreenMaterial() {
         uv.x += INTERFERENCE * 2.0 / 1024.0 * r;
 
         // --- 2. curvature -------------------------------------------------
-        uv = curveRemapUV(uv);
+        uv = crtWarp(uv, LENS);
 
         // --- 3. the sweeping scan band ------------------------------------
         // Runs for SCAN_CYCLE then parks off-screen for the remainder of the
@@ -147,21 +144,29 @@ export function createArcadeScreenMaterial() {
         color *= step(currentLine, revealLine);
 
         // --- 7. vignette, grain, black lift, scanlines --------------------
-        vec2 v = vUv * 2.0 - 1.0;
-        color *= 1.0 - min(1.0, dot(v, v) * VIGNETTE);
+        color *= crtVignette(vUv, VIGNETTE);
 
-        color += (random(gl_FragCoord.xy * 0.002 + time) - 0.5) * GRAIN;
+        color += crtGrain(gl_FragCoord.xy, time) * GRAIN;
 
         // Unlit phosphor is never truly black; a faint tint in the shadows
         // is most of what sells the tube.
         color += uTintLow * BLACK_LIFT * (1.0 - smoothstep(0.0, 0.15, luma));
 
-        float scan = 0.5 + 0.5 * cos(vUv.y * SCANLINE_COUNT * 6.28318530718);
-        color *= 1.0 - SCANLINE_DEPTH * scan;
+        color *= 1.0 - SCANLINE_DEPTH * crtScanPhase(vUv.y * SCANLINE_COUNT);
 
         gl_FragColor = vec4(max(color, 0.0), 1.0);
       }
     `,
   });
   return material;
+}
+
+/**
+ * Re-colour the tube from the active theme: highlights land on the theme's
+ * phosphor tint, shadows on a darker cut of the same hue (a single-phosphor
+ * tube has one hue, unlike the old fixed teal->purple ramp).
+ */
+export function setArcadePhosphor(material: ShaderMaterial, tint: string) {
+  (material.uniforms.uTintHigh.value as Color).set(tint);
+  (material.uniforms.uTintLow.value as Color).set(tint).multiplyScalar(0.4);
 }
