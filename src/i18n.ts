@@ -20,6 +20,7 @@ export const translations: Record<
     effectsOn: string;
     effectsOff: string;
     resetCamera: string;
+    asciiMode: string;
     credits: string;
     creditsTitle: string;
     controls: { hint: string; title: string; clickComputer: string; password: string; back: string; crt: string; dismiss: string; };
@@ -38,6 +39,7 @@ export const translations: Record<
     effectsOn: "CRT FX: ON",
     effectsOff: "CRT FX: OFF",
     resetCamera: "⟳ RESET VIEW",
+    asciiMode: "ASCII CONSOLE",
     credits: "CREDITS",
     creditsTitle: "ASSET CREDITS",
     controls: { hint: "CONTROLS", title: "CONTROLS", clickComputer: "click the computer to approach", password: "check the note on the desk", back: "return to the scene", crt: "toggle vintage lens effect", dismiss: "[ESC or click to close]" },
@@ -55,6 +57,7 @@ export const translations: Record<
     effectsOn: "EFECTOS CRT: SÍ",
     effectsOff: "EFECTOS CRT: NO",
     resetCamera: "⟳ RESTABLECER VISTA",
+    asciiMode: "CONSOLA ASCII",
     credits: "CRÉDITOS",
     creditsTitle: "CRÉDITOS DE RECURSOS",
     controls: { hint: "CONTROLES", title: "CONTROLES", clickComputer: "haz clic en el ordenador para acercarte", password: "revisa la nota encima del escritorio", back: "volver a la escena", crt: "activar/desactivar efecto de lente retro", dismiss: "[ESC o clic para cerrar]" },
@@ -72,6 +75,7 @@ export const translations: Record<
     effectsOn: "EFECTES CRT: SÍ",
     effectsOff: "EFECTES CRT: NO",
     resetCamera: "⟳ RESTABLIR VISTA",
+    asciiMode: "CONSOLA ASCII",
     credits: "CRÈDITS",
     creditsTitle: "CRÈDITS DE RECURSOS",
     controls: { hint: "CONTROLS", title: "CONTROLS", clickComputer: "clica a l'ordinador per apropar-te", password: "revisa la nota sobre l'escriptori", back: "tornar a l'escena", crt: "activar/desactivar efecte de lent retro", dismiss: "[ESC o clic per tancar]" },

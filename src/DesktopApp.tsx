@@ -104,7 +104,7 @@ function SiteFrame({
   );
 }
 
-export default function DesktopApp() {
+export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: () => void }) {
   const [phase, setPhase] = useState<FlightPhase>("idle");
   // Which station the camera is flying toward/at/back from — stays set
   // through "returning" (CameraRig needs it to lerp back from the right
@@ -309,6 +309,12 @@ export default function DesktopApp() {
               {t.resetCamera}
             </button>
           )}
+          <button
+            onClick={onSwitchToConsole}
+            style={{ fontFamily: "monospace", background: "rgba(0,0,0,0.6)", color: "#bfe9ff", border: "1px solid #bfe9ff", padding: "8px 14px", cursor: "pointer" }}
+          >
+            {t.asciiMode}
+          </button>
           <button
             onClick={() => setFxEnabled((v) => !v)}
             style={{ fontFamily: "monospace", background: "rgba(0,0,0,0.6)", color: "#bfe9ff", border: "1px solid #bfe9ff", padding: "8px 14px", cursor: "pointer" }}
