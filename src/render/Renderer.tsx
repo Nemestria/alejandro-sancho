@@ -17,6 +17,7 @@ import {
 } from "three";
 import { createPostMaterial } from "./postMaterial";
 import { useTheme } from "../theme";
+import { CRT_PRESETS, type CrtParams } from "../crt/params";
 
 // Custom render pipeline, ported from the basement.studio reference's
 // `components/postprocessing/renderer.tsx`.
@@ -56,14 +57,22 @@ interface Grade {
 // miniature: one table instead of the intensity constants that were
 // previously duplicated across the deleted PostFX.tsx and CrtOverlay.tsx and
 // kept in step by hand.
+// The CRT numbers (lens, scanlines, grain, vignette, tint) come from the shared
+// presets in crt/params.ts; what is left here is the 3D-only colour grade.
+function grade(
+  p: CrtParams,
+  g: Pick<Grade, "tonemap" | "posterize" | "exposure" | "contrast" | "brightness" | "gamma">,
+): Grade {
+  return {
+    distortion: p.lens, aberration: p.aberration, scanline: p.scan, noise: p.grain,
+    vignette: p.vignette, tintAmount: p.tint, tint: "#ffffff", ...g,
+  };
+}
+
 const GRADES: Record<GradePhase, Grade> = {
-  // Full wide-lens look for the establishing shot.
-  idle:   { distortion: 0.12, aberration: 0.55, scanline: 0.16, noise: 0.030, vignette: 0.45, tint: "#8fd8e8", tintAmount: 0.10, tonemap: 1, posterize: 10, exposure: 1.55, contrast: 1.06, brightness: 1.0, gamma: 1.0 },
-  // At the monitor: everything pulled back so the terminal/portfolio reads.
-  screen: { distortion: 0.03, aberration: 0.40, scanline: 0.06, noise: 0.015, vignette: 0.28, tint: "#8fd8e8", tintAmount: 0.04, tonemap: 1, posterize: 14, exposure: 1.45, contrast: 1.02, brightness: 1.0, gamma: 1.0 },
-  // At the arcade: no warp at all — the cabinet's own CRT shader supplies
-  // the curvature there, and stacking the two read as fisheye.
-  arcade: { distortion: 0.00, aberration: 0.30, scanline: 0.05, noise: 0.012, vignette: 0.22, tint: "#c9a2ff", tintAmount: 0.06, tonemap: 1, posterize: 14, exposure: 1.45, contrast: 1.02, brightness: 1.0, gamma: 1.0 },
+  idle:   grade(CRT_PRESETS.sceneIdle,   { tonemap: 1, posterize: 10, exposure: 1.55, contrast: 1.06, brightness: 1.0, gamma: 1.0 }),
+  screen: grade(CRT_PRESETS.sceneScreen, { tonemap: 1, posterize: 14, exposure: 1.45, contrast: 1.02, brightness: 1.0, gamma: 1.0 }),
+  arcade: grade(CRT_PRESETS.sceneArcade, { tonemap: 1, posterize: 14, exposure: 1.45, contrast: 1.02, brightness: 1.0, gamma: 1.0 }),
 };
 
 const OFF: Grade = {

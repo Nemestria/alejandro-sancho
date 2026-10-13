@@ -8,6 +8,7 @@ import LanguageGate from "./LanguageGate";
 import { FONT_BODY, FONT_DISPLAY } from "./fonts";
 import { Button, Panel, ThemePicker } from "./ui";
 import { useTheme } from "./theme";
+import { useFx } from "./crt/fx";
 import CrtOverlay from "./CrtOverlay";
 import { Credits } from "./Credits";
 import Renderer, { type GradePhase } from "./render/Renderer";
@@ -17,8 +18,6 @@ import type { StationId } from "./stations";
 import { ARCADE_LABS } from "./arcadeLabs";
 import { useArcadeScreen } from "./useArcadeScreen";
 import ScreenGlass from "./ScreenGlass";
-
-const FX_STORAGE_KEY = "3d-gateway-fx-enabled";
 
 // ?embed=1 signals the portfolio to activate its embed-mode font/spacing
 // adjustments (see mainRepo/src/main.tsx). Never used for security — the
@@ -149,12 +148,7 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
   };
   // Vintage CRT/wide-lens post-processing (render/Renderer.tsx), toggleable from a
   // settings button — persisted so the choice survives a reload.
-  const [fxEnabled, setFxEnabled] = useState(
-    () => localStorage.getItem(FX_STORAGE_KEY) !== "false",
-  );
-  useEffect(() => {
-    localStorage.setItem(FX_STORAGE_KEY, String(fxEnabled));
-  }, [fxEnabled]);
+  const [fxEnabled, toggleFx] = useFx();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -297,7 +291,7 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
             <Button onClick={() => setCamResetKey(k => k + 1)}>{t.resetCamera}</Button>
           )}
           <Button onClick={onSwitchToConsole}>{t.asciiMode}</Button>
-          <Button onClick={() => setFxEnabled((v) => !v)}>{fxEnabled ? t.effectsOn : t.effectsOff}</Button>
+          <Button onClick={toggleFx}>{fxEnabled ? t.effectsOn : t.effectsOff}</Button>
           {/* Attribution is a licence term, not a nicety — see ATTRIBUTIONS.md. */}
           <Credits t={t} />
         </div>

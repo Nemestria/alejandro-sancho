@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { LANGUAGES, type Lang } from "./i18n";
 import { FONT_BODY } from "./fonts";
 import { consoleContent } from "./consoleContent";
+import { useFx } from "./crt/fx";
 import { Button, LinkButton, Panel, ThemePicker } from "./ui";
 import { CrtGlass, LensDefs, LENS_FILTER_ID } from "./ConsoleCrt";
-
-const FX_KEY = "console-fx";
 
 // The "simple" portfolio: monospace, hard edges, zero images. Two flat colours
 // only — ink on paper, both from the active theme (white-on-black by default,
@@ -95,12 +94,7 @@ export default function ConsoleApp({ lang, onLang, onSwitch, isMobile, portfolio
   }, []);
 
   // CRT lens/phosphor/noise, off-switchable like the 3D view's CRT toggle.
-  const [fx, setFx] = useState(() => {
-    try { return localStorage.getItem(FX_KEY) !== "off"; } catch { return true; }
-  });
-  useEffect(() => {
-    try { localStorage.setItem(FX_KEY, fx ? "on" : "off"); } catch { /* ignore */ }
-  }, [fx]);
+  const [fx, toggleFx] = useFx();
 
   const rule = useMemo(() => "=".repeat(200), []);
 
@@ -139,7 +133,7 @@ export default function ConsoleApp({ lang, onLang, onSwitch, isMobile, portfolio
             ? <LinkButton href={portfolioUrl}>{c.toPortfolio}</LinkButton>
             : <Button onClick={onSwitch}>{c.to3d}</Button>}
           <span style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <Button active={fx} onClick={() => setFx((v) => !v)}>CRT {fx ? "ON" : "OFF"}</Button>
+            <Button active={fx} onClick={toggleFx}>CRT {fx ? "ON" : "OFF"}</Button>
             <ThemePicker />
             <span style={{ letterSpacing: 1 }}>{c.lang}:</span>
             {LANGUAGES.map((l) => (
