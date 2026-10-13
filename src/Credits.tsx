@@ -33,8 +33,9 @@ export function Credits({ t }: { t: T }) {
         <div
           onClick={() => setOpen(false)}
           style={{
-            position: "absolute",
+            position: "fixed",
             inset: 0,
+            padding: "88px 16px 24px", // clear the top-right button row
             background: "var(--scrim)",
             display: "flex",
             alignItems: "center",
@@ -50,7 +51,7 @@ export function Credits({ t }: { t: T }) {
               cursor: "auto",
               maxWidth: 620,
               width: "min(90vw, 620px)",
-              maxHeight: "80vh",
+              maxHeight: "calc(100vh - 128px)",
               overflowY: "auto",
               fontSize: 13,
               lineHeight: 1.7,
