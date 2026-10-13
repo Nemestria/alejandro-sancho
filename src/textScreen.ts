@@ -1,4 +1,5 @@
 import { CanvasTexture, LinearFilter, SRGBColorSpace } from "three";
+import { FONT_DISPLAY } from "./fonts";
 
 // A character-cell display, drawn with a 2D canvas and worn as a texture by
 // a screen mesh.
@@ -26,7 +27,7 @@ import { CanvasTexture, LinearFilter, SRGBColorSpace } from "three";
 // canvas 2D can use any font the document has. That is why the arcade screen
 // needs no font asset of its own, and why it sidesteps the troika
 // custom-font problem noted in Scene.tsx's WelcomeSign.
-const FONT_FAMILY = '"Press Start 2P", monospace';
+const FONT_FAMILY = FONT_DISPLAY;
 
 // Cells are TALLER than they are wide, as every real text mode's were (VGA's
 // was 9x16). Square cells were the first attempt and they read as a grid of

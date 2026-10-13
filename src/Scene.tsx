@@ -13,6 +13,7 @@ import {
 } from "./screenAnchor";
 import { createArcadeScreenMaterial } from "./arcadeScreenMaterial";
 import Room from "./Room";
+import { FONT_DISPLAY } from "./fonts";
 import {
   ARCADE_SCREEN_WORLD_NORMAL,
   ARCADE_SCREEN_WORLD_POSITION,
@@ -64,15 +65,10 @@ function Note() {
   );
 }
 
-// Google Fonts "Boldonse" — a genuinely heavy display weight. troika's SDF
-// <Text> needs an actual font *file* loaded via XHR inside a worker, and
-// that silently never resolved here (no error, no visible network request,
-// tried both a remote .woff and a self-hosted same-origin .ttf) — rather
-// than keep fighting troika's worker font loader, render this one as a
-// regular DOM overlay instead: drei's <Html> billboard mode (no `transform`,
-// same technique ScreenPlane already uses reliably) with a plain CSS
-// @import (see index.css), exactly how the rest of this app's text
-// (PasswordTerminal, LanguageGate) already gets its fonts.
+// Rendered as a DOM overlay (drei <Html> billboard, no `transform`, same
+// technique ScreenPlane uses) rather than troika <Text>: troika's worker font
+// loader silently never resolved here, and the DOM gets the project's
+// self-hosted fonts (see fonts.ts) for free.
 function WelcomeSign({ text }: { text: string }) {
   // World position picked so it projects onto the RIGHT side of the
   // establishing shot (camera (4,3,6) → (0,1.2,0)) at roughly the same
@@ -84,8 +80,8 @@ function WelcomeSign({ text }: { text: string }) {
         <div
           style={{
             width: 340,
-            fontFamily: "'Boldonse', sans-serif",
-            fontSize: 22,
+            fontFamily: FONT_DISPLAY,
+            fontSize: 17,
             lineHeight: 1.4,
             textAlign: "center",
             color: "#ffffff",

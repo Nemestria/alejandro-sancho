@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useProgress } from "@react-three/drei";
 import { LANGUAGES, translations, type Lang } from "./i18n";
+import { FONT_BODY, FONT_DISPLAY } from "./fonts";
 
-const PX = "'Press Start 2P', monospace";
-const MONO = "'Share Tech Mono', monospace";
+const PX = FONT_DISPLAY;
+const MONO = FONT_BODY;
 const ACCENT = "#00b9be";
 
 const GLITCH_CSS = `

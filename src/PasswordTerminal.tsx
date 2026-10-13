@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { translations } from "./i18n";
+import { FONT_BODY, FONT_DISPLAY } from "./fonts";
 
 const PASSWORD = "1234";
-const PX = "'Press Start 2P', monospace";
-const MONO = "'Share Tech Mono', monospace";
+const PX = FONT_DISPLAY;
+const MONO = FONT_BODY;
 const ACCENT = "#00b9be";
 const ERROR = "#ff4d4d";
 

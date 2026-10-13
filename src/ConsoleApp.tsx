@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { LANGUAGES, type Lang } from "./i18n";
+import { FONT_BODY } from "./fonts";
 import { consoleContent } from "./consoleContent";
 import { CrtGlass, LensDefs, LENS_FILTER_ID } from "./ConsoleCrt";
 
@@ -10,7 +11,7 @@ const FX_KEY = "console-fx";
 // with ASCII (dots, dashes) rather than grey. Selection = inverse video.
 const FG = "#fff";
 const BG = "#000";
-const FONT = '"Courier New", Courier, monospace';
+const FONT = FONT_BODY;
 
 // 5x5 bitmap font, just the letters the banner needs.
 const GLYPHS: Record<string, string[]> = {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ATTRIBUTIONS } from "./attributions";
 import type { translations } from "./i18n";
+import { FONT_BODY, FONT_DISPLAY } from "./fonts";
 
 type T = (typeof translations)["en"];
 
@@ -60,13 +61,13 @@ export function Credits({ t }: { t: T }) {
               border: "1px solid #bfe9ff",
               background: "rgba(0,0,0,0.92)",
               color: "#bfe9ff",
-              fontFamily: "monospace",
+              fontFamily: FONT_BODY,
               fontSize: 13,
               lineHeight: 1.7,
               padding: "24px 28px",
             }}
           >
-            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 12, marginBottom: 20 }}>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 12, marginBottom: 20 }}>
               {t.creditsTitle}
             </div>
 
@@ -96,7 +97,7 @@ export function Credits({ t }: { t: T }) {
 }
 
 const BUTTON: React.CSSProperties = {
-  fontFamily: "monospace",
+  fontFamily: FONT_BODY,
   background: "rgba(0,0,0,0.6)",
   color: "#bfe9ff",
   border: "1px solid #bfe9ff",
