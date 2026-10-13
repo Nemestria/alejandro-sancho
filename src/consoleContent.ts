@@ -1,10 +1,5 @@
 import type { Lang } from "./i18n";
 
-// Content for the ASCII console (ConsoleApp.tsx). Plain strings on purpose:
-// this is the one file to edit for wording. Facts come from the portfolio's
-// own copy (../mainRepo src/app/data/i18n.ts + PORTFOLIO.md); lines marked
-// DRAFT are written from those facts but still need Alejandro's own words.
-
 export type Line = string | { text: string; href: string };
 
 export interface Section {
@@ -32,13 +27,13 @@ const INSTAGRAM = "https://www.instagram.com/soyvertigo/";
 export const consoleContent: Record<Lang, ConsoleStrings> = {
   en: {
     tagline: "3D ENVIRONMENT ARTIST & CREATIVE DEVELOPER",
-    boot: "ASANCHO.SYS v1.0 -- 1-BIT MODE -- NO TEXTURES LOADED",
+    boot: "VERTIGO.1.9.9.8 ////> AVAILABLE TO WORK </////",
     menu: "INDEX",
-    to3d: "[ ENTER 3D WORLD > ]",
+    to3d: "[ ENTER 3D SCENE -> ]",
     toPortfolio: "[ OPEN FULL PORTFOLIO > ]",
     lang: "LANG",
     keys: "KEYS: 1-6 SECTION · L LANGUAGE · G 3D WORLD",
-    footer: "END OF FILE_",
+    footer: "alejandrosancho v0.9",
     sections: [
       {
         id: "about",
@@ -139,13 +134,13 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
   },
   es: {
     tagline: "ARTISTA DE ENTORNOS 3D Y DESARROLLADOR CREATIVO",
-    boot: "ASANCHO.SYS v1.0 -- MODO 1-BIT -- SIN TEXTURAS CARGADAS",
+    boot: "VERTIGO.1.9.9.8 ////> DISPONIBLE PARA TRABAJAR </////",
     menu: "ÍNDICE",
-    to3d: "[ ENTRAR AL MUNDO 3D > ]",
+    to3d: "[ ENTRAR A LA ESCENA 3D -> ]",
     toPortfolio: "[ ABRIR PORTFOLIO COMPLETO > ]",
     lang: "IDIOMA",
     keys: "TECLAS: 1-6 SECCIÓN · L IDIOMA · G MUNDO 3D",
-    footer: "FIN DEL ARCHIVO_",
+    footer: "alejandrosancho v0.9",
     sections: [
       {
         id: "about",
@@ -246,13 +241,13 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
   },
   ca: {
     tagline: "ARTISTA D'ENTORNS 3D I DESENVOLUPADOR CREATIU",
-    boot: "ASANCHO.SYS v1.0 -- MODE 1-BIT -- SENSE TEXTURES CARREGADES",
+    boot: "VERTIGO.1.9.9.8 ////> DISPONIBLE PER TREBALLAR </////",
     menu: "ÍNDEX",
-    to3d: "[ ENTRAR AL MÓN 3D > ]",
+    to3d: "[ ENTRAR A L'ESCENA 3D -> ]",
     toPortfolio: "[ OBRIR PORTFOLIO COMPLET > ]",
     lang: "IDIOMA",
     keys: "TECLES: 1-6 SECCIÓ · L IDIOMA · G MÓN 3D",
-    footer: "FI DE L'ARXIU_",
+    footer: "alejandrosancho v0.9",
     sections: [
       {
         id: "about",
