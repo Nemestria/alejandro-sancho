@@ -9,7 +9,6 @@ import { FONT_BODY, FONT_DISPLAY } from "./fonts";
 import { Button, Panel, ThemePicker } from "./ui";
 import { useTheme } from "./theme";
 import { useFx } from "./crt/fx";
-import CrtOverlay from "./CrtOverlay";
 import { Credits } from "./Credits";
 import Renderer, { type GradePhase } from "./render/Renderer";
 import { translations, type Lang } from "./i18n";
@@ -222,11 +221,10 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "var(--paper)", position: "relative" }}>
-      {/* No page-wide CSS/SVG filter any more — see CrtOverlay.tsx. The 3D
-          canvas grades itself in one pass (render/Renderer.tsx) and the
-          embedded iframes get their own CRT glass (ScreenGlass.tsx), which
-          together cover what the whole-document filter used to, without
-          making the compositor re-filter every DOM node on every frame. */}
+      {/* No page-wide CSS/SVG filter: the 3D canvas grades itself in one pass
+          (render/Renderer.tsx), the embedded iframes and the language gate get
+          crt/Glass, and none of it makes the compositor re-filter every DOM
+          node on every frame. */}
       <div style={{ width: "100%", height: "100%" }}>
         <Canvas shadows camera={{ position: [4, 3, 6], fov: 50 }}>
           <Renderer enabled={fxEnabled} phase={gradePhase}>
@@ -370,8 +368,6 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
         )}
       </div>
 
-      {/* DOM-only screens keep a static CRT layer; the canvas grades itself. */}
-      {fxEnabled && !lang && <CrtOverlay />}
     </div>
   );
 }

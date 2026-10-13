@@ -49,13 +49,13 @@ export const CRT_PRESETS = {
 
   // Glass over a cross-origin iframe (crt/Glass.tsx): can't be warped, so it
   // carries the parts of a tube that sit in front of the picture.
-  glass: { ...NONE, scan: 0.34, triad: 0.10, vignette: 0.55, roll: 0.10, tint: 0.22, grain: 0.06, mask: 0.0 },
+  glass: { ...NONE, scan: 0.34, triad: 0.05, vignette: 0.55, roll: 0.10, tint: 0.22, grain: 0.06, mask: 0.35 },
 
   // The arcade screen mesh's own tube (arcadeScreenMaterial.ts).
   tube: { ...NONE, lens: 0.03, scan: 0.30, vignette: 0.50, grain: 0.014 },
 
   // Flat DOM pages (ASCII console, language gate): lens via SVG displacement.
-  ui: { ...NONE, lens: 0.035, panini: 0.03, scan: 0.14, vignette: 0.55, grain: 0.10, mask: 0.55 },
+  ui: { ...NONE, lens: 0.035, panini: 0.03, scan: 0.14, vignette: 0.55, grain: 0.06, mask: 0.55 },
 } satisfies Record<string, CrtParams>;
 
 export type CrtPresetName = keyof typeof CRT_PRESETS;

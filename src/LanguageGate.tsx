@@ -3,6 +3,10 @@ import { useProgress } from "@react-three/drei";
 import { LANGUAGES, translations, type Lang } from "./i18n";
 import { FONT_BODY, FONT_DISPLAY } from "./fonts";
 import { Button } from "./ui";
+import Glass from "./crt/Glass";
+import { LensDefs, LENS_FILTER_ID } from "./crt/Lens";
+import { useFx } from "./crt/fx";
+import { useTheme } from "./theme";
 
 const PX = FONT_DISPLAY;
 const MONO = FONT_BODY;
@@ -26,6 +30,8 @@ const CYCLE_LANGS: Lang[] = ["en", "es", "ca"];
 
 export default function LanguageGate({ onDone }: { onDone: (lang: Lang) => void }) {
   const { progress } = useProgress();
+  const [fx] = useFx();
+  const theme = useTheme();
   const [chosen, setChosen] = useState<Lang | null>(null);
 
   // Cycling state — only active before a language is chosen
@@ -58,8 +64,12 @@ export default function LanguageGate({ onDone }: { onDone: (lang: Lang) => void 
     : translations[cycledLang].chooseLanguage;
 
   return (
+    <>
+    {fx && <LensDefs />}
+    <Glass preset="ui" fixed tint={theme.tint} />
     <div
       style={{
+        filter: fx ? `url(#${LENS_FILTER_ID})` : undefined,
         position: "absolute",
         inset: 0,
         background: "var(--paper)",
@@ -99,5 +109,6 @@ export default function LanguageGate({ onDone }: { onDone: (lang: Lang) => void 
         {Math.round(progress)}%
       </div>
     </div>
+    </>
   );
 }

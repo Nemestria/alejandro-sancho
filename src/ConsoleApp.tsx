@@ -4,7 +4,9 @@ import { FONT_BODY } from "./fonts";
 import { consoleContent } from "./consoleContent";
 import { useFx } from "./crt/fx";
 import { Button, LinkButton, Panel, ThemePicker } from "./ui";
-import { CrtGlass, LensDefs, LENS_FILTER_ID } from "./ConsoleCrt";
+import Glass from "./crt/Glass";
+import { LensDefs, LENS_FILTER_ID } from "./crt/Lens";
+import { useTheme } from "./theme";
 
 // The "simple" portfolio: monospace, hard edges, zero images. Two flat colours
 // only — ink on paper, both from the active theme (white-on-black by default,
@@ -95,13 +97,14 @@ export default function ConsoleApp({ lang, onLang, onSwitch, isMobile, portfolio
 
   // CRT lens/phosphor/noise, off-switchable like the 3D view's CRT toggle.
   const [fx, toggleFx] = useFx();
+  const theme = useTheme();
 
   const rule = useMemo(() => "=".repeat(200), []);
 
   return (
     <>
     {fx && <LensDefs />}
-    {fx && <CrtGlass />}
+    <Glass preset="ui" fixed tint={theme.tint} />
     <div
       style={{
         filter: fx ? `url(#${LENS_FILTER_ID})` : undefined,
