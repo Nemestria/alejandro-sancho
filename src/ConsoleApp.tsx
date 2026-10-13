@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { LANGUAGES, type Lang } from "./i18n";
 import { FONT_BODY } from "./fonts";
 import { consoleContent } from "./consoleContent";
+import { Button, LinkButton, Panel, ThemePicker } from "./ui";
 import { CrtGlass, LensDefs, LENS_FILTER_ID } from "./ConsoleCrt";
 
 const FX_KEY = "console-fx";
 
-// The "simple" portfolio: pure black/white, monospace, hard edges, zero images.
-// Strictly 1-bit — only #000 and #fff appear anywhere, so "dim" text is done
-// with ASCII (dots, dashes) rather than grey. Selection = inverse video.
-const FG = "#fff";
-const BG = "#000";
+// The "simple" portfolio: monospace, hard edges, zero images. Two flat colours
+// only — ink on paper, both from the active theme (white-on-black by default,
+// see theme.ts) — so "dim" text is ASCII (dots, dashes) rather than grey and
+// selection is inverse video.
+const FG = "var(--ink)";
+const BG = "var(--paper)";
 const FONT = FONT_BODY;
 
 // 5x5 bitmap font, just the letters the banner needs.
@@ -43,8 +45,8 @@ function Banner({ word }: { word: string }) {
   return (
     <svg
       role="img" aria-label={word} viewBox={`0 0 ${x - 1} 5`}
-      shapeRendering="crispEdges" fill={FG}
-      style={{ display: "block", width: "100%", maxWidth: word.length * 6 * 14, marginBottom: 14 }}
+      shapeRendering="crispEdges"
+      style={{ fill: FG, display: "block", width: "100%", maxWidth: word.length * 6 * 14, marginBottom: 14 }}
     >
       {cells}
     </svg>
@@ -59,22 +61,6 @@ interface Props {
   // to the full portfolio instead.
   isMobile: boolean;
   portfolioUrl: string;
-}
-
-function Btn({
-  children, onClick, href, active,
-}: { children: React.ReactNode; onClick?: () => void; href?: string; active?: boolean }) {
-  const [hover, setHover] = useState(false);
-  const inv = active || hover;
-  const style: React.CSSProperties = {
-    font: "inherit", fontWeight: 700, cursor: "pointer", textDecoration: "none",
-    padding: "6px 12px", border: `3px solid ${FG}`, letterSpacing: 1,
-    background: inv ? FG : BG, color: inv ? BG : FG, display: "inline-block",
-  };
-  const common = { style, onMouseEnter: () => setHover(true), onMouseLeave: () => setHover(false) };
-  return href
-    ? <a {...common} href={href}>{children}</a>
-    : <button {...common} onClick={onClick}>{children}</button>;
 }
 
 export default function ConsoleApp({ lang, onLang, onSwitch, isMobile, portfolioUrl }: Props) {
@@ -132,8 +118,7 @@ export default function ConsoleApp({ lang, onLang, onSwitch, isMobile, portfolio
       } as React.CSSProperties}
     >
       <style>{`
-        .asc ::selection { background:#fff; color:#000; }
-        .asc a:focus-visible, .asc button:focus-visible { outline:3px dashed #fff; outline-offset:3px; }
+        .asc ::selection { background:var(--ink); color:var(--paper); }
         .asc .nav { display:grid; grid-template-columns: 1fr; gap:0; }
         @media (min-width: 820px) { .asc .body { grid-template-columns: 240px 1fr !important; } }
       `}</style>
@@ -151,15 +136,16 @@ export default function ConsoleApp({ lang, onLang, onSwitch, isMobile, portfolio
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginBottom: 20 }}>
           {isMobile
-            ? <Btn href={portfolioUrl}>{c.toPortfolio}</Btn>
-            : <Btn onClick={onSwitch}>{c.to3d}</Btn>}
+            ? <LinkButton href={portfolioUrl}>{c.toPortfolio}</LinkButton>
+            : <Button onClick={onSwitch}>{c.to3d}</Button>}
           <span style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <Btn active={fx} onClick={() => setFx((v) => !v)}>CRT {fx ? "ON" : "OFF"}</Btn>
+            <Button active={fx} onClick={() => setFx((v) => !v)}>CRT {fx ? "ON" : "OFF"}</Button>
+            <ThemePicker />
             <span style={{ letterSpacing: 1 }}>{c.lang}:</span>
             {LANGUAGES.map((l) => (
-              <Btn key={l.code} active={l.code === lang} onClick={() => onLang(l.code)}>
+              <Button key={l.code} active={l.code === lang} onClick={() => onLang(l.code)}>
                 {l.code.toUpperCase()}
-              </Btn>
+              </Button>
             ))}
           </span>
         </div>
@@ -168,35 +154,26 @@ export default function ConsoleApp({ lang, onLang, onSwitch, isMobile, portfolio
           className="body"
           style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20, alignItems: "start" }}
         >
-          <nav aria-label={c.menu} style={{ border: `3px solid ${FG}`, boxShadow: `6px 6px 0 ${FG}` }}>
-            <div style={{ background: FG, color: BG, fontWeight: 700, padding: "4px 12px", letterSpacing: 2 }}>
-              {c.menu}
-            </div>
-            <div className="nav">
-              {c.sections.map((s, i) => {
-                const on = i === idx;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setIdx(i)}
-                    aria-current={on ? "page" : undefined}
-                    style={{
-                      font: "inherit", textAlign: "left", cursor: "pointer", padding: "8px 12px",
-                      border: "none", borderTop: i ? `1px solid ${FG}` : "none",
-                      background: on ? FG : BG, color: on ? BG : FG, fontWeight: 700, letterSpacing: 1,
-                    }}
-                  >
-                    {on ? ">" : " "} {String(i + 1).padStart(2, "0")} {s.label}
-                  </button>
-                );
-              })}
-            </div>
-          </nav>
+          <Panel title={<span role="heading" aria-level={2}>{c.menu}</span>}>
+            <nav aria-label={c.menu} className="nav">
+              {c.sections.map((s, i) => (
+                <button
+                  key={s.id}
+                  className="ui-row"
+                  onClick={() => setIdx(i)}
+                  aria-current={i === idx ? "page" : undefined}
+                >
+                  {i === idx ? ">" : " "} {String(i + 1).padStart(2, "0")} {s.label}
+                </button>
+              ))}
+            </nav>
+          </Panel>
 
-          <main style={{ border: `3px solid ${FG}`, boxShadow: `6px 6px 0 ${FG}`, minWidth: 0 }}>
-            <div style={{ background: FG, color: BG, fontWeight: 700, padding: "4px 12px", letterSpacing: 2 }}>
-              {String(idx + 1).padStart(2, "0")}/{String(c.sections.length).padStart(2, "0")} -- {section.label}
-            </div>
+          <Panel
+            title={`${String(idx + 1).padStart(2, "0")}/${String(c.sections.length).padStart(2, "0")} -- ${section.label}`}
+            style={{ minWidth: 0 }}
+          >
+            <main>
             <div style={{ padding: "16px 16px 20px" }}>
               {section.lines.map((ln, i) => {
                 const text = typeof ln === "string" ? ln : ln.text;
@@ -214,7 +191,8 @@ export default function ConsoleApp({ lang, onLang, onSwitch, isMobile, portfolio
                 <span aria-hidden style={{ background: cursor ? FG : BG, color: cursor ? BG : FG }}> </span>
               </div>
             </div>
-          </main>
+            </main>
+          </Panel>
         </div>
 
         <div style={{ overflow: "hidden", whiteSpace: "nowrap", height: "1.55em", marginTop: 24 }}>{rule}</div>

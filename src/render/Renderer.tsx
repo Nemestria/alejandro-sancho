@@ -16,6 +16,7 @@ import {
   WebGLRenderTarget,
 } from "three";
 import { createPostMaterial } from "./postMaterial";
+import { useTheme } from "../theme";
 
 // Custom render pipeline, ported from the basement.studio reference's
 // `components/postprocessing/renderer.tsx`.
@@ -81,6 +82,7 @@ export default function Renderer({
   enabled: boolean;
   phase: GradePhase;
 }) {
+  const theme = useTheme();
   const size = useThree((s) => s.size);
   const dpr = useThree((s) => s.viewport.dpr);
   const gl = useThree((s) => s.gl);
@@ -160,7 +162,7 @@ export default function Renderer({
     to("uContrast", g.contrast);
     to("uBrightness", g.brightness);
     to("uGamma", g.gamma);
-    (u.uTint.value as Color).lerp(tmpColor.set(g.tint), 1 - Math.exp(-6 * d));
+    (u.uTint.value as Color).lerp(tmpColor.set(theme.tint), 1 - Math.exp(-6 * d));
     u.uTime.value = clock.elapsedTime;
 
     // Scene pass — linear, untonemapped; the post shader owns the transfer.

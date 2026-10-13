@@ -20,17 +20,17 @@ export default function ScreenFlash({ onDone }: { onDone: () => void }) {
     >
       <style>{`
         @keyframes screen-flash {
-          0%   { background: #ffffff; opacity: 1;    transform: translateX(0); }
-          6%   { background: #bfe9ff; opacity: 0.95;  transform: translateX(0); }
-          12%  { background: #000000; opacity: 0.85;  transform: translateX(-3px); }
-          18%  { background: #bfe9ff; opacity: 0.5;   transform: translateX(3px); }
-          26%  { background: #ffffff; opacity: 0.8;   transform: translateX(0); }
-          34%  { background: #000000; opacity: 0.15;  transform: translateX(0); }
-          42%  { background: #bfe9ff; opacity: 0.5;   transform: translateX(-2px); }
-          50%  { background: #000000; opacity: 0.1;   transform: translateX(0); }
-          60%  { background: #ffffff; opacity: 0.35;  transform: translateX(0); }
-          72%  { background: #000000; opacity: 0.05;  transform: translateX(0); }
-          100% { background: #000000; opacity: 0;     transform: translateX(0); }
+          0%   { background: var(--ink); opacity: 1;    transform: translateX(0); }
+          6%   { background: var(--ink); opacity: 0.95;  transform: translateX(0); }
+          12%  { background: var(--paper); opacity: 0.85;  transform: translateX(-3px); }
+          18%  { background: var(--ink); opacity: 0.5;   transform: translateX(3px); }
+          26%  { background: var(--ink); opacity: 0.8;   transform: translateX(0); }
+          34%  { background: var(--paper); opacity: 0.15;  transform: translateX(0); }
+          42%  { background: var(--ink); opacity: 0.5;   transform: translateX(-2px); }
+          50%  { background: var(--paper); opacity: 0.1;   transform: translateX(0); }
+          60%  { background: var(--ink); opacity: 0.35;  transform: translateX(0); }
+          72%  { background: var(--paper); opacity: 0.05;  transform: translateX(0); }
+          100% { background: var(--paper); opacity: 0;     transform: translateX(0); }
         }
       `}</style>
     </div>

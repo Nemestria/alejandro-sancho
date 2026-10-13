@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { ATTRIBUTIONS } from "./attributions";
 import type { translations } from "./i18n";
-import { FONT_BODY, FONT_DISPLAY } from "./fonts";
+import { FONT_DISPLAY } from "./fonts";
+import { Button, Panel } from "./ui";
 
 type T = (typeof translations)["en"];
 
@@ -11,8 +12,7 @@ type T = (typeof translations)["en"];
 // reachable, is the usual reading of "reasonable to the medium".
 //
 // Styled to match the CRT chrome around it rather than as a system dialog:
-// this sits inside the fiction, so it gets the same monospace and phosphor
-// blue as the effects toggle beside it.
+// this sits inside the fiction, so it uses the same Button/Panel as the rest of the UI.
 export function Credits({ t }: { t: T }) {
   const [open, setOpen] = useState(false);
 
@@ -27,12 +27,7 @@ export function Credits({ t }: { t: T }) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        style={BUTTON}
-      >
-        {t.credits}
-      </button>
+      <Button onClick={() => setOpen(true)}>{t.credits}</Button>
 
       {open && (
         <div
@@ -40,7 +35,7 @@ export function Credits({ t }: { t: T }) {
           style={{
             position: "absolute",
             inset: 0,
-            background: "rgba(0,0,0,0.82)",
+            background: "var(--scrim)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -48,20 +43,15 @@ export function Credits({ t }: { t: T }) {
             cursor: "pointer",
           }}
         >
-          <div
+          <Panel
             // Clicks inside the panel must not dismiss it — the links have to
             // stay clickable.
-            onClick={(e) => e.stopPropagation()}
             style={{
               cursor: "auto",
               maxWidth: 620,
               width: "min(90vw, 620px)",
               maxHeight: "80vh",
               overflowY: "auto",
-              border: "1px solid #bfe9ff",
-              background: "rgba(0,0,0,0.92)",
-              color: "#bfe9ff",
-              fontFamily: FONT_BODY,
               fontSize: 13,
               lineHeight: 1.7,
               padding: "24px 28px",
@@ -89,23 +79,14 @@ export function Credits({ t }: { t: T }) {
             ))}
 
             <div style={{ opacity: 0.5, marginTop: 24 }}>{t.controls.dismiss}</div>
-          </div>
+          </Panel>
         </div>
       )}
     </>
   );
 }
 
-const BUTTON: React.CSSProperties = {
-  fontFamily: FONT_BODY,
-  background: "rgba(0,0,0,0.6)",
-  color: "#bfe9ff",
-  border: "1px solid #bfe9ff",
-  padding: "8px 14px",
-  cursor: "pointer",
-};
-
 const LINK: React.CSSProperties = {
-  color: "#f2bfe9",
-  textDecorationThickness: 1,
+  color: "var(--ink)",
+  textDecorationThickness: 2,
 };

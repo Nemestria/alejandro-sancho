@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { translations } from "./i18n";
 import { FONT_BODY, FONT_DISPLAY } from "./fonts";
+import { Button } from "./ui";
 
 const PASSWORD = "1234";
 const PX = FONT_DISPLAY;
 const MONO = FONT_BODY;
-const ACCENT = "#00b9be";
-const ERROR = "#ff4d4d";
+const ACCENT = "var(--ink)";
+const ERROR = "var(--danger)";
 
 export default function PasswordTerminal({
   t,
@@ -37,7 +38,7 @@ export default function PasswordTerminal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#020a0a",
+        background: "var(--paper)",
         animation: "term-fade-in 0.6s ease both",
       }}
     >
@@ -45,9 +46,9 @@ export default function PasswordTerminal({
         onSubmit={submit}
         style={{
           width: "82%",
-          background: "rgba(5, 12, 12, 0.92)",
+          background: "var(--panel)",
           border: `1px solid ${ACCENT}`,
-          boxShadow: `0 0 24px ${ACCENT}55`,
+          boxShadow: "var(--shadow-hard)",
           padding: "24px 20px",
           transform: "scale(0.6)",
           animation: denied ? "term-shake 0.3s ease" : undefined,
@@ -87,30 +88,16 @@ export default function PasswordTerminal({
           style={{
             fontFamily: MONO,
             fontSize: 12,
-            color: `${ACCENT}99`,
+            color: "var(--ink-dim)",
             marginTop: 10,
             letterSpacing: 1,
           }}
         >
           {t.hint}
         </div>
-        <button
-          type="submit"
-          style={{
-            width: "100%",
-            marginTop: 16,
-            background: "transparent",
-            border: `1px solid ${ACCENT}`,
-            color: ACCENT,
-            fontFamily: PX,
-            fontSize: 11,
-            letterSpacing: 1,
-            padding: "10px 0",
-            cursor: "pointer",
-          }}
-        >
+        <Button type="submit" style={{ width: "100%", marginTop: 16 }}>
           {t.confirm}
-        </button>
+        </Button>
         {denied && (
           <div
             style={{

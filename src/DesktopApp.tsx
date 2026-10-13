@@ -6,6 +6,8 @@ import PasswordTerminal from "./PasswordTerminal";
 import ScreenFlash from "./ScreenFlash";
 import LanguageGate from "./LanguageGate";
 import { FONT_BODY, FONT_DISPLAY } from "./fonts";
+import { Button, Panel, ThemePicker } from "./ui";
+import { useTheme } from "./theme";
 import CrtOverlay from "./CrtOverlay";
 import { Credits } from "./Credits";
 import Renderer, { type GradePhase } from "./render/Renderer";
@@ -83,7 +85,7 @@ function SiteFrame({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#000",
+          background: "var(--paper)",
         }}
       >
         <iframe
@@ -106,6 +108,7 @@ function SiteFrame({
 }
 
 export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: () => void }) {
+  const theme = useTheme();
   const [phase, setPhase] = useState<FlightPhase>("idle");
   // Which station the camera is flying toward/at/back from — stays set
   // through "returning" (CameraRig needs it to lerp back from the right
@@ -218,13 +221,13 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
       <PasswordTerminal t={t} onSuccess={() => { setUnlocked(true); setFlashActive(true); }} />
     ) : unlocked ? (
       <div style={{ position: "relative", width: "100%", height: "100%" }}>
-        <SiteFrame title="portfolio" src={portfolioUrl(lang!)} tint="#bfe9ff" />
+        <SiteFrame title="portfolio" src={portfolioUrl(lang!)} tint={theme.tint} />
         {flashActive && <ScreenFlash onDone={() => setFlashActive(false)} />}
       </div>
     ) : null;
 
   return (
-    <div style={{ width: "100vw", height: "100vh", background: "#000", position: "relative" }}>
+    <div style={{ width: "100vw", height: "100vh", background: "var(--paper)", position: "relative" }}>
       {/* No page-wide CSS/SVG filter any more — see CrtOverlay.tsx. The 3D
           canvas grades itself in one pass (render/Renderer.tsx) and the
           embedded iframes get their own CRT glass (ScreenGlass.tsx), which
@@ -249,18 +252,18 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
                 const lab = ARCADE_LABS.find((l) => l.id === activeLab);
                 if (!lab?.url) return undefined;
                 return (
-                  <SiteFrame title={lab.title} src={lab.url} tint="#f2bfe9">
+                  <SiteFrame title={lab.title} src={lab.url} tint={theme.tint}>
                     {/* Above the glass layers, so it stays clickable */}
-                    <button
+                    <Button
                       onClick={() => setActiveLab(null)}
                       // Sized against the Html layer's own pixel width (ARCADE_HTML_WIDTH_PX,
                       // now 1280), which is close to 1:1 with real screen pixels — so these
                       // are ordinary CSS sizes. At the old 220 the layer was magnified ~6x
                       // and a 9px glyph landed on screen as a 59px button.
-                      style={{ position: "absolute", top: 12, right: 12, zIndex: 2, fontFamily: FONT_BODY, fontSize: 16, background: "rgba(15,0,12,0.85)", color: "#f2bfe9", border: "1px solid rgba(242,191,233,0.4)", padding: "6px 12px", cursor: "pointer", letterSpacing: 1 }}
+                      style={{ position: "absolute", top: 12, right: 12, zIndex: 2, fontSize: 16, padding: "6px 12px" }}
                     >
-                      ✕
-                    </button>
+                      X
+                    </Button>
                   </SiteFrame>
                 );
               })()}
@@ -283,45 +286,18 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
         </Canvas>
 
         {phase !== "idle" && phase !== "returning" && (
-          <button
-            onClick={leaveStation}
-            style={{
-              position: "absolute",
-              top: 16,
-              left: 16,
-              fontFamily: FONT_BODY,
-              background: "rgba(0,0,0,0.6)",
-              color: "#bfe9ff",
-              border: "1px solid #bfe9ff",
-              padding: "8px 14px",
-              cursor: "pointer",
-            }}
-          >
+          <Button onClick={leaveStation} style={{ position: "absolute", top: 16, left: 16 }}>
             {t.back}
-          </button>
+          </Button>
         )}
 
-        <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8 }}>
+        <div style={{ position: "absolute", top: 16, right: 16, display: "flex", gap: 8, alignItems: "center", zIndex: 11 }}>
+          <ThemePicker />
           {phase === "idle" && (
-            <button
-              onClick={() => setCamResetKey(k => k + 1)}
-              style={{ fontFamily: FONT_BODY, background: "rgba(0,0,0,0.6)", color: "#bfe9ff", border: "1px solid #bfe9ff", padding: "8px 14px", cursor: "pointer" }}
-            >
-              {t.resetCamera}
-            </button>
+            <Button onClick={() => setCamResetKey(k => k + 1)}>{t.resetCamera}</Button>
           )}
-          <button
-            onClick={onSwitchToConsole}
-            style={{ fontFamily: FONT_BODY, background: "rgba(0,0,0,0.6)", color: "#bfe9ff", border: "1px solid #bfe9ff", padding: "8px 14px", cursor: "pointer" }}
-          >
-            {t.asciiMode}
-          </button>
-          <button
-            onClick={() => setFxEnabled((v) => !v)}
-            style={{ fontFamily: FONT_BODY, background: "rgba(0,0,0,0.6)", color: "#bfe9ff", border: "1px solid #bfe9ff", padding: "8px 14px", cursor: "pointer" }}
-          >
-            {fxEnabled ? t.effectsOn : t.effectsOff}
-          </button>
+          <Button onClick={onSwitchToConsole}>{t.asciiMode}</Button>
+          <Button onClick={() => setFxEnabled((v) => !v)}>{fxEnabled ? t.effectsOn : t.effectsOff}</Button>
           {/* Attribution is a licence term, not a nicety — see ATTRIBUTIONS.md. */}
           <Credits t={t} />
         </div>
@@ -338,7 +314,7 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
               transform: "translateX(-50%)",
               fontFamily: FONT_DISPLAY,
               fontSize: 15,
-              color: "#f2bfe9",
+              color: "var(--ink)",
               letterSpacing: 3,
               pointerEvents: "none",
               userSelect: "none",
@@ -357,24 +333,23 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
           return (
             <div
               onClick={() => setActiveLab(null)}
-              style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.75)", zIndex: 60 }}
+              style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--scrim)", zIndex: 60 }}
             >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{ fontFamily: FONT_BODY, color: "#f2bfe9", border: "1px solid rgba(242,191,233,0.4)", background: "rgba(15,0,12,0.9)", padding: "42px 56px", maxWidth: 480, textAlign: "center", letterSpacing: 1 }}
+              <Panel
+                style={{ padding: "42px 56px", maxWidth: 480, textAlign: "center", letterSpacing: 1 }}
               >
                 <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, marginBottom: 20, letterSpacing: 2 }}>{lab?.title ?? activeLab}</div>
-                <div style={{ fontSize: 13, lineHeight: 1.9, color: "rgba(242,191,233,0.75)", marginBottom: 24 }}>{lab?.description}</div>
+                <div style={{ fontSize: 13, lineHeight: 1.9, color: "var(--ink-dim)", marginBottom: 24 }}>{lab?.description}</div>
                 <div style={{ fontSize: 14, letterSpacing: 3, marginBottom: 18 }}>— {t.arcade.labComingSoon} —</div>
-                <div style={{ fontSize: 11, color: "rgba(242,191,233,0.4)" }}>{t.arcade.labBackHint}</div>
-              </div>
+                <div style={{ fontSize: 11, color: "var(--ink-faint)" }}>{t.arcade.labBackHint}</div>
+              </Panel>
             </div>
           );
         })()}
 
         {/* Subtle ESC hint — always visible in idle, fades when not needed */}
         {lang && phase === "idle" && !showHelp && (
-          <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", fontFamily: FONT_BODY, fontSize: 11, color: "rgba(191,233,255,0.35)", letterSpacing: 2, pointerEvents: "none", userSelect: "none" }}>
+          <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", fontFamily: FONT_BODY, fontSize: 11, color: "var(--ink-faint)", letterSpacing: 2, pointerEvents: "none", userSelect: "none" }}>
             [ESC] {t.controls.hint}
           </div>
         )}
@@ -383,21 +358,20 @@ export default function DesktopApp({ onSwitchToConsole }: { onSwitchToConsole: (
         {showHelp && (
           <div
             onClick={() => setShowHelp(false)}
-            style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.55)", zIndex: 50 }}
+            style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--scrim)", zIndex: 50 }}
           >
-            <div
-              onClick={e => e.stopPropagation()}
-              style={{ fontFamily: FONT_BODY, color: "#bfe9ff", border: "1px solid rgba(191,233,255,0.3)", background: "rgba(0,10,15,0.85)", padding: "36px 48px", maxWidth: 440, lineHeight: 2.1, letterSpacing: 1 }}
+            <Panel
+              style={{ padding: "36px 48px", maxWidth: 440, lineHeight: 2.1, letterSpacing: 1 }}
             >
-              <div style={{ fontSize: 13, marginBottom: 18, color: "#7ecfef", letterSpacing: 3 }}>— {t.controls.title} —</div>
+              <div style={{ fontSize: 13, marginBottom: 18, letterSpacing: 3 }}>— {t.controls.title} —</div>
               <div style={{ fontSize: 13 }}>
-                <div><span style={{ color: "#7ecfef" }}>CLICK</span> {" "}{t.controls.clickComputer}</div>
-                <div><span style={{ color: "#7ecfef" }}>PASSWORD</span> {" "}{t.controls.password}</div>
-                <div><span style={{ color: "#7ecfef" }}>&lt; / ESC</span> {" "}{t.controls.back}</div>
-                <div><span style={{ color: "#7ecfef" }}>CRT</span> {" "}{t.controls.crt}</div>
+                <div><span style={{ fontWeight: 700 }}>CLICK</span> {" "}{t.controls.clickComputer}</div>
+                <div><span style={{ fontWeight: 700 }}>PASSWORD</span> {" "}{t.controls.password}</div>
+                <div><span style={{ fontWeight: 700 }}>&lt; / ESC</span> {" "}{t.controls.back}</div>
+                <div><span style={{ fontWeight: 700 }}>CRT</span> {" "}{t.controls.crt}</div>
               </div>
-              <div style={{ fontSize: 11, marginTop: 20, color: "rgba(191,233,255,0.35)" }}>{t.controls.dismiss}</div>
-            </div>
+              <div style={{ fontSize: 11, marginTop: 20, color: "var(--ink-faint)" }}>{t.controls.dismiss}</div>
+            </Panel>
           </div>
         )}
       </div>

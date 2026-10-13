@@ -1,0 +1,87 @@
+/* Design tokens + the few shared UI classes. --ink/--paper are overwritten at
+   runtime by theme.ts; the values here are the "white" defaults for first paint. */
+:root {
+  --ink: #fff;
+  --paper: #000;
+  --danger: #ff4d4d;
+
+  /* Derived — never hard-code rgba(…) of a theme colour, use these. */
+  --ink-dim: color-mix(in srgb, var(--ink) 60%, transparent);
+  --ink-faint: color-mix(in srgb, var(--ink) 35%, transparent);
+  --panel: color-mix(in srgb, var(--paper) 88%, transparent);
+  --scrim: color-mix(in srgb, var(--paper) 82%, transparent);
+
+  --font-display: 'Press Start 2P', monospace;
+  --font-body: 'Space Mono', monospace;
+  --line: 2px;
+  --line-heavy: 3px;
+  --shadow-hard: 6px 6px 0 var(--ink);
+}
+
+.ui-btn {
+  font-family: var(--font-display);
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 1px;
+  color: var(--ink);
+  background: var(--panel);
+  border: var(--line) solid var(--ink);
+  padding: 10px 14px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+.ui-btn:hover,
+.ui-btn.is-active {
+  background: var(--ink);
+  color: var(--paper);
+}
+.ui-btn:focus-visible,
+.ui-row:focus-visible,
+.ui-swatch:focus-visible {
+  outline: var(--line) dashed var(--ink);
+  outline-offset: 3px;
+}
+
+.ui-panel {
+  border: var(--line-heavy) solid var(--ink);
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font-body);
+  box-shadow: var(--shadow-hard);
+}
+.ui-panel__title {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  padding: 8px 12px;
+}
+
+/* Selectable list row (console nav). */
+.ui-row {
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: left;
+  cursor: pointer;
+  padding: 8px 12px;
+  border: none;
+  background: var(--paper);
+  color: var(--ink);
+}
+.ui-row + .ui-row { border-top: 1px solid var(--ink); }
+.ui-row[aria-current="page"],
+.ui-row:hover { background: var(--ink); color: var(--paper); }
+
+.ui-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  cursor: pointer;
+  border: var(--line) solid var(--ink);
+  display: inline-grid;
+  place-items: center;
+}
+.ui-swatch[aria-pressed="true"] { outline: var(--line) solid var(--ink); outline-offset: 2px; }

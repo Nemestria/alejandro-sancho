@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useProgress } from "@react-three/drei";
 import { LANGUAGES, translations, type Lang } from "./i18n";
 import { FONT_BODY, FONT_DISPLAY } from "./fonts";
+import { Button } from "./ui";
 
 const PX = FONT_DISPLAY;
 const MONO = FONT_BODY;
-const ACCENT = "#00b9be";
+const ACCENT = "var(--ink)";
 
 const GLITCH_CSS = `
 @keyframes lg-glitch {
@@ -61,7 +62,7 @@ export default function LanguageGate({ onDone }: { onDone: (lang: Lang) => void 
       style={{
         position: "absolute",
         inset: 0,
-        background: "#020a0a",
+        background: "var(--paper)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -83,27 +84,18 @@ export default function LanguageGate({ onDone }: { onDone: (lang: Lang) => void 
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, width: 260 }}>
         {LANGUAGES.map(({ code, label }) => (
-          <button
+          <Button
             key={code}
+            active={chosen === code}
             onClick={() => { localStorage.setItem("vertigo-lang", code); setChosen(code); }}
-            style={{
-              width: "100%",
-              background: chosen === code ? ACCENT : "transparent",
-              color: chosen === code ? "#020a0a" : ACCENT,
-              border: `1px solid ${ACCENT}`,
-              fontFamily: PX,
-              fontSize: 11,
-              letterSpacing: 1,
-              padding: "12px 0",
-              cursor: "pointer",
-            }}
+            style={{ width: "100%" }}
           >
             {label}
-          </button>
+          </Button>
         ))}
       </div>
 
-      <div style={{ fontFamily: MONO, fontSize: 12, color: `${ACCENT}99`, letterSpacing: 1 }}>
+      <div style={{ fontFamily: MONO, fontSize: 12, color: "var(--ink-dim)", letterSpacing: 1 }}>
         {Math.round(progress)}%
       </div>
     </div>
