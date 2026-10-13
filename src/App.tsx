@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { PORTFOLIO_BASE_URL } from "./portfolioUrl";
 import ConsoleApp from "./ConsoleApp";
 import type { Lang } from "./i18n";
 
@@ -9,9 +8,8 @@ import type { Lang } from "./i18n";
 const DesktopApp = lazy(() => import("./DesktopApp"));
 
 // Mobile: the 3D scene/camera-drag/password-terminal experience isn't worth a
-// touch-friendly version, so phones default to the ASCII console (the "simple"
-// portfolio) and never download the GLBs. Their switch button links straight
-// to the full portfolio instead of the 3D scene.
+// touch-friendly version (and it misbehaves on phones), so phones only ever get
+// the ASCII console and never download the GLBs.
 const MOBILE_BREAKPOINT = 768;
 function useIsMobile() {
   const query = `(max-width: ${MOBILE_BREAKPOINT}px)`;
@@ -68,7 +66,6 @@ function App() {
         onLang={setLang}
         onSwitch={() => { window.location.hash = "#3d"; }}
         isMobile={isMobile}
-        portfolioUrl={PORTFOLIO_BASE_URL}
       />
     );
   }

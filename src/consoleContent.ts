@@ -13,7 +13,7 @@ export interface ConsoleStrings {
   boot: string;
   menu: string;
   to3d: string;
-  toPortfolio: string;
+  holo: { open: string; hint: string };
   lang: string;
   keys: string;
   footer: string;
@@ -30,9 +30,9 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
     boot: "VERTIGO.1.9.9.8 ////> AVAILABLE TO WORK </////",
     menu: "INDEX",
     to3d: "[ ENTER 3D SCENE -> ]",
-    toPortfolio: "[ OPEN FULL PORTFOLIO > ]",
     lang: "LANG",
     keys: "KEYS: 1-6 SECTION · L LANGUAGE · G 3D WORLD",
+    holo: { open: "OPEN ->", hint: "DRAG TO ROTATE · TAP TO FLIP" },
     footer: "alejandrosancho v0.9",
     sections: [
       {
@@ -76,19 +76,7 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
         id: "projects",
         label: "PROJECTS",
         lines: [
-          "[2025] PROJECT_01 -- SWORD SET",
-          "  Game-ready, low to high poly, retopo, UE5-optimised.",
-          "  Concept by Maeve.",
-          "",
-          "[2025] PROJECT_02 -- AXE SET",
-          "  Darksiders-style stylised weapons. Ref by Jakob Gavelli.",
-          "  Mentored by Visual Architects.",
-          "",
-          "[2026] PROJECT_03 -- STREET ENVIRONMENT",
-          "  Bloodborne-inspired modular kit. Only decals and foliage",
-          "  come from the FAB library; everything else is made by hand.",
-          "",
-          "Renders, videos and breakdowns live in the full portfolio.",
+          "Selected work: websites, a code lab and 3D art.",
         ],
       },
       {
@@ -137,9 +125,9 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
     boot: "VERTIGO.1.9.9.8 ////> DISPONIBLE PARA TRABAJAR </////",
     menu: "ÍNDICE",
     to3d: "[ ENTRAR A LA ESCENA 3D -> ]",
-    toPortfolio: "[ ABRIR PORTFOLIO COMPLETO > ]",
     lang: "IDIOMA",
     keys: "TECLAS: 1-6 SECCIÓN · L IDIOMA · G MUNDO 3D",
+    holo: { open: "ABRIR ->", hint: "ARRASTRA PARA ROTAR · TOCA PARA VOLTEAR" },
     footer: "alejandrosancho v0.9",
     sections: [
       {
@@ -183,19 +171,7 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
         id: "projects",
         label: "PROYECTOS",
         lines: [
-          "[2025] PROJECT_01 -- SET DE ESPADAS",
-          "  Listo para juego, de low a high poly, retopo, optimizado UE5.",
-          "  Concepto de Maeve.",
-          "",
-          "[2025] PROJECT_02 -- SET DE HACHAS",
-          "  Armas estilizadas estilo Darksiders. Ref de Jakob Gavelli.",
-          "  Mentoría de Visual Architects.",
-          "",
-          "[2026] PROJECT_03 -- ENTORNO DE CALLE",
-          "  Kit modular inspirado en Bloodborne. Solo decals y vegetación",
-          "  vienen de la librería FAB; el resto está hecho a mano.",
-          "",
-          "Renders, vídeos y desgloses están en el portfolio completo.",
+          "Trabajo seleccionado: webs, un laboratorio de código y arte 3D.",
         ],
       },
       {
@@ -244,9 +220,9 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
     boot: "VERTIGO.1.9.9.8 ////> DISPONIBLE PER TREBALLAR </////",
     menu: "ÍNDEX",
     to3d: "[ ENTRAR A L'ESCENA 3D -> ]",
-    toPortfolio: "[ OBRIR PORTFOLIO COMPLET > ]",
     lang: "IDIOMA",
     keys: "TECLES: 1-6 SECCIÓ · L IDIOMA · G MÓN 3D",
+    holo: { open: "OBRIR ->", hint: "ARROSSEGA PER ROTAR · TOCA PER GIRAR" },
     footer: "alejandrosancho v0.9",
     sections: [
       {
@@ -290,19 +266,7 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
         id: "projects",
         label: "PROJECTES",
         lines: [
-          "[2025] PROJECT_01 -- SET D'ESPASES",
-          "  Llest per a joc, de low a high poly, retopo, optimitzat UE5.",
-          "  Concepte de Maeve.",
-          "",
-          "[2025] PROJECT_02 -- SET DE BALTES",
-          "  Armes estilitzades estil Darksiders. Ref de Jakob Gavelli.",
-          "  Mentoria de Visual Architects.",
-          "",
-          "[2026] PROJECT_03 -- ENTORN DE CARRER",
-          "  Kit modular inspirat en Bloodborne. Només decals i vegetació",
-          "  vénen de la llibreria FAB; la resta està feta a mà.",
-          "",
-          "Renders, vídeos i desglossaments són al portfolio complet.",
+          "Treball seleccionat: webs, un laboratori de codi i art 3D.",
         ],
       },
       {
