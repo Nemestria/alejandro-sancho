@@ -19,8 +19,14 @@ pnpm build
 
 ## Key Files
 - `src/App.tsx` — thin shell: mobile detection (`matchMedia`, see "Mobile fallback" below) and `React.lazy`-loads `DesktopApp.tsx`. Keep this file free of any Scene/Canvas/GLTF imports — a static import here would defeat the lazy-load and download the 3D bundle on phones anyway
-- `src/ConsoleApp.tsx` + `src/consoleContent.ts` — the "simple" portfolio: strictly 1-bit (#000/#fff only) brutalist ASCII console (EN/ES/CA). Mode lives in the URL hash (`#console` / `#3d`), switched by a button in each view. Phones always get the console (their switch button links to the full portfolio). All copy is in `consoleContent.ts`; lines marked DRAFT need Alejandro's own words
-- `src/ConsoleCrt.tsx` — CRT for the console: SVG displacement-map lens (barrel + horizontal panini, map baked per viewport), `public/crt-phosphor.webp` RGB mask, flicker noise, vignette. Toggle persisted as `console-fx`
+- `src/ConsoleApp.tsx` + `src/consoleContent.ts` — the "simple" portfolio: monospace, hard-edged ASCII console (EN/ES/CA), white-on-black by default. Mode lives in the URL hash (`#console` / `#3d`), switched by a button in each view. Phones always get the console (their switch button links to the full portfolio). All copy is in `consoleContent.ts`; lines marked DRAFT need Alejandro's own words
+- **Design system — read before adding any UI or effect** (rationale: ARCHITECTURE.md "Design system"):
+  - `src/fonts.ts` — the ONLY two typefaces: `FONT_DISPLAY` = Press Start 2P (short titles/labels/buttons), `FONT_BODY` = Space Mono (everything else). Self-hosted via `@fontsource`, imported in `main.tsx`. Neither has arrows or ⟳ — use ASCII. Never write a font-family literal
+  - `src/theme.ts` + `src/theme.css` — colour tokens. A theme is ink-on-paper (+ a 3D tint); six exist (`white` default, green, amber, cyan, pink, e-ink), persisted as `vertigo-theme`. DOM code uses `var(--ink)`, `var(--paper)`, `var(--panel)`, `var(--ink-dim)`, `var(--danger)` — never a hex/rgba literal. JS/WebGL code uses `useTheme()`
+  - `src/ui.tsx` — `Button`, `LinkButton`, `Panel`, `ThemePicker`; styled by `.ui-*` classes in `theme.css`. Use these instead of inline-styled buttons
+  - `src/crt/params.ts` — every CRT strength as a named preset (`sceneIdle`/`sceneScreen`/`sceneArcade`/`glass`/`tube`/`ui`). To retune the look, edit here
+  - `src/crt/glsl.ts` — the shared GLSL (scanline, triad, vignette, grain, roll, warp), spliced into `render/postMaterial.ts` and `arcadeScreenMaterial.ts`. Add effect maths here, not in a shader
+  - `src/crt/Glass.tsx` — the one DOM CRT layer (WebGL multiply canvas using `public/crt-phosphor.webp` + static) for iframes (`ScreenGlass`), `LanguageGate` and the console. `src/crt/Lens.tsx` — SVG displacement lens for DOM-only pages. `src/crt/fx.ts` — the single site-wide CRT on/off (`vertigo-fx`)
 - `src/DesktopApp.tsx` — the actual experience: top-level phase state (`idle`/`flying`/`arrived`/`returning`), mounts `<Canvas>`, renders the screen-anchored password terminal and embedded portfolio iframe once unlocked, wraps everything in the CRT filter + settings toggle, gates the whole page behind `LanguageGate` until a language is chosen
 - `src/portfolioUrl.ts` — the portfolio's base URL (`VITE_PORTFOLIO_URL` env, falls back to the live Vercel URL); split out of `DesktopApp.tsx` so `App.tsx`'s mobile-redirect path doesn't need to import the heavy module to read it
 - `src/Scene.tsx` — desk/computer GLB models, `OfficeFloor` (single-mesh procedural tile texture — do not reintroduce a separate grid plane, see ARCHITECTURE.md "Floor"), note prop, `WelcomeSign` (dismisses on first station-entry or after 15s), `ScreenPlane` (hover glow + Html anchor target)
@@ -29,10 +35,9 @@ pnpm build
 - `src/PasswordTerminal.tsx` — password UI (hint + explicit CONFIRM button alongside Enter-to-submit), rendered via drei `<Html>` (billboard mode) anchored to the screen-plane, all strings passed in via the `t` translation prop
 - `src/i18n.ts` — `Lang` type (`en`/`es`/`ca`) + the `translations` dictionary; this is the one file to edit for wording/translation changes, see ARCHITECTURE.md "Internationalization"
 - `src/LanguageGate.tsx` — language-select screen shown before anything else; also the loading screen (tracks real asset-load progress via drei's `useProgress`, same loading manager `useGLTF` uses)
-- `src/render/Renderer.tsx` — the custom render pipeline: portals the scene into a private `Scene`, renders it to a linear HalfFloat target, resolves it with one fullscreen quad. Owns the `GRADES` table (`idle`/`screen`/`arcade`). Replaces the old `PostFX.tsx` + `EffectComposer`
+- `src/render/Renderer.tsx` — the custom render pipeline: portals the scene into a private `Scene`, renders it to a linear HalfFloat target, resolves it with one fullscreen quad. Owns the `GRADES` table (`idle`/`screen`/`arcade`), whose CRT numbers come from `crt/params.ts`. Replaces the old `PostFX.tsx` + `EffectComposer`
 - `src/render/postMaterial.ts` — that quad's shader: fused lens warp + chromatic aberration, ACES, grading, phosphor tint, scanlines, grain, vignette, sRGB encode
-- `src/ScreenGlass.tsx` — CRT glass over the cross-origin iframes; a small WebGL canvas in `mix-blend-mode: multiply`, sized in device pixels so the scanline pitch never drifts with `distanceFactor`
-- `src/CrtOverlay.tsx` — one static scanline/vignette layer for the DOM-only `LanguageGate`. The page-wide SVG filter it used to apply is gone — see ARCHITECTURE.md "Post-processing"
+- `src/ScreenGlass.tsx` — thin wrapper: `crt/Glass` (preset `glass`) + a static bezel shadow over the cross-origin iframes
 - `package.json` — `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing` already installed
 
 ## Conventions (carried over from the portfolio, keep consistent)

@@ -101,13 +101,13 @@ The current arrangement is modelled on the [basement.studio 2k25 site](https://g
 
   Per-phase looks live in one `GRADES` table (`idle`/`screen`/`arcade`), damped toward on phase change — the reference's per-scene `postprocessing` settings in miniature, replacing intensity constants that used to be duplicated across two files.
 
-- **`src/ScreenGlass.tsx`** — the cross-origin iframes (the portfolio, the labs). WebGL can never sample DOM, so the mesh shader cannot run over these; what it draws instead is *the glass*, on a small WebGL canvas composited in `mix-blend-mode: multiply` over the iframe. Its backing store is sized in device pixels, so the scanline pitch is correct by construction at any `distanceFactor` — the previous CSS version had to measure the ancestor transform chain with `getBoundingClientRect` to achieve the same thing.
+- **`src/crt/Glass.tsx`** (used by `ScreenGlass.tsx` for the cross-origin iframes — the portfolio, the labs — and directly by `LanguageGate` and the console) — WebGL can never sample DOM, so the mesh shader cannot run over these; what it draws instead is *the glass*: scanlines, RGB triads, the phosphor-mask texture (`public/crt-phosphor.webp`), vignette, a roll bar and a phosphor cast, as a per-channel multiplier on a small WebGL canvas in `mix-blend-mode: multiply`, plus a separate static layer. Its backing store is sized in device pixels, so the scanline pitch is correct by construction at any `distanceFactor`. The canvas is created inside the effect (not by React) so a StrictMode re-mount never receives a lost context.
 
-- **`src/CrtOverlay.tsx`** — what is left is one static gradient layer for the DOM-only `LanguageGate`. No filter, no animation, no per-frame cost.
+- **`src/crt/Lens.tsx`** — DOM-only pages (language gate, console) can also be *warped*: an SVG displacement filter with a map baked once per viewport size (barrel + horizontal panini). It is never applied over the WebGL canvas or iframes — re-filtering those every frame is exactly what the old page-wide filter did.
 
 - **`src/arcadeScreenMaterial.ts`** — the arcade's own screen, which *is* a WebGL texture and so gets the real thing. See "Arcade screen shader" below.
 
-All of it is driven by the one `fxEnabled` boolean in `DesktopApp.tsx` (settings button, top-right, persisted in `localStorage`). Switching it off does not tear the pipeline down; it damps every grade uniform to a neutral value and sets `uTonemap` to 0, which makes the pass a straight linear-to-sRGB passthrough.
+All of it is driven by one site-wide on/off (`crt/fx.ts`, key `vertigo-fx`; the 3D settings button and the console's `CRT` button both flip it, and `Glass`/`ScreenGlass` render nothing when it is off). Switching it off does not tear the pipeline down; it damps every grade uniform to a neutral value and sets `uTonemap` to 0, which makes the pass a straight linear-to-sRGB passthrough.
 
 ## Arcade screen shader
 
@@ -131,10 +131,23 @@ The floor used to be two overlapping planes — a solid `meshStandardMaterial` p
 
 **Now wired to the embedded portfolio's language.** The chosen `Lang` is passed as `?lang=es|en|ca` on the iframe `src` (see `portfolioUrl()` in `src/App.tsx`) — the portfolio's `App.tsx` reads it (`URL_LANG`) and uses it as the initial language, skipping its own splash language-picker step. localStorage can't carry this across origins (gateway and portfolio are separate Vercel deployments with separate storage), so the URL param is the only inheritance channel; if no `lang` param is present (portfolio visited directly, not through the gateway), it falls back to its own remembered choice or the language-select splash as before.
 
+## Design system — fonts, colour, shared UI, one CRT
+
+Introduced after the project had grown five typefaces, ~6 hand-copied button styles, a cyan/pink/teal/purple palette of literals and **five independent CRT implementations** (3D post pass, arcade tube shader, iframe glass, a CSS-gradient overlay, and the console's own layers) with unsynchronised numbers. Now:
+
+- **Two typefaces** (`src/fonts.ts`): Press Start 2P for short titles/labels/buttons, Space Mono for everything longer and anything with ES/CA accents. Self-hosted through `@fontsource` (no Google Fonts request). Neither font has arrows or ⟳, so UI strings use ASCII (`<`, "UP/DOWN"). Press Start 2P *does* have accented capitals but squeezes the accent into the cap height, so they read as slightly degraded at small sizes — acceptable for labels, don't use it for prose.
+- **Colour** (`src/theme.ts`, `src/theme.css`): a theme is *ink on paper* plus a tint for the 3D grade. `white` is the standard; `green`, `amber`, `cyan`, `pink`, `eink` are opt-in via the swatch row (`ThemePicker`, shown in both views). DOM reads CSS variables; WebGL consumers (`Renderer` tint, arcade phosphor, glass tint) read `useTheme()`. Hard-coded hex/rgba in a component is a bug.
+- **Shared widgets** (`src/ui.tsx` + `.ui-*` in `theme.css`): `Button`, `LinkButton`, `Panel`, `ThemePicker`.
+- **One CRT** (`src/crt/`): `params.ts` holds every strength as a named preset; `glsl.ts` holds the maths once and is spliced into `postMaterial.ts` and `arcadeScreenMaterial.ts`; `Glass.tsx`/`Lens.tsx` serve all DOM surfaces; `fx.ts` is the one toggle. Deliberate exceptions: the arcade tube's scanlines ride the texture's uv (it is a mesh viewed at any distance, not a flat glass), and the 3D scene gets scanlines but not the phosphor-mask texture (a 1:1 pixel mask over a moving 3D image would moiré).
+
+## ASCII console
+
+`ConsoleApp.tsx` + `consoleContent.ts`: the "simple" portfolio (about, background, projects, interests, concerns, contact; EN/ES/CA). `App.tsx` picks the mode from the URL hash (`#console` / `#3d`); phones always get the console and never download the 3D bundle (their switch button links to the full portfolio). Sections marked `DRAFT` in `consoleContent.ts` still need Alejandro's own words.
+
 ## Password terminal
 
 Once the camera flight finishes, fade in an **HTML overlay anchored to the screen-plane** (via drei `<Html>` billboard mode, see above — not a full-page overlay, not a 3D-rendered texture):
-- Reuse `Press Start 2P` / `Share Tech Mono` (match `../mainRepo`'s `PX`/`MONO` constants) for visual continuity between the two projects
+- Uses the project's two typefaces, `Press Start 2P` + `Space Mono` (see "Design system"); the portfolio's own `PX`/`MONO` are the same family of choices, for visual continuity
 - Plain controlled `<input>`, styled like a BIOS/terminal prompt (blinking cursor, echoed or asterisked characters — pick one, asterisks reads more "password," plain echo reads more "terminal")
 - A dim "HINT: 1234" line under the input — same energy as the in-scene note prop, just also visible right at the point of entry
 - An explicit CONFIRM button (`type="submit"` inside the `<form>`, so it shares the exact same submit handler pressing Enter already uses) alongside Enter-to-submit, for anyone who doesn't think to hit Enter
@@ -150,7 +163,7 @@ A small paper/plane mesh near the desk, rendered with "1234" on it (canvas textu
 
 A one-time greeting (`WelcomeSign` in `src/Scene.tsx`), positioned off to the left of the room, visible only from the establishing shot. Dismisses on whichever comes first: 15 seconds, or the visitor clicking into a station for the first time (`Scene`'s `signDismissed` state + `showWelcome` prop, the latter gated on the language gate having resolved in `App.tsx` — the sign shouldn't run its countdown or appear while the visitor is still picking a language).
 
-It renders as drei's `<Html>` in billboard mode (plain CSS text, `Boldonse` from Google Fonts via `index.css`'s `@import`) wrapped in a `<Billboard>` so it always faces the camera — **not** troika's SDF `<Text>` (used elsewhere for the note prop). Text was tried first; fetching a custom font file for it (both a remote `.woff` and a self-hosted same-origin `.ttf`) silently never resolved — no thrown error, no visible network request from the font-loading worker, just permanently invisible geometry. Given `<Html>`-with-CSS-fonts already works reliably everywhere else in this app, that's the path this component uses instead of continuing to debug troika's worker-based font loader.
+It renders as drei's `<Html>` in billboard mode (plain CSS text in `FONT_DISPLAY`, i.e. Press Start 2P — the Boldonse it once used is gone) wrapped in a `<Billboard>` so it always faces the camera — **not** troika's SDF `<Text>` (used elsewhere for the note prop). Text was tried first; fetching a custom font file for it (both a remote `.woff` and a self-hosted same-origin `.ttf`) silently never resolved — no thrown error, no visible network request from the font-loading worker, just permanently invisible geometry. Given `<Html>`-with-CSS-fonts already works reliably everywhere else in this app, that's the path this component uses instead of continuing to debug troika's worker-based font loader.
 
 ## Open decisions (need Alejandro's input before/while building)
 

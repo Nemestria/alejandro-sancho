@@ -21,8 +21,8 @@ This experience should feel like a **prologue** to the portfolio, not a disconne
 This is the bridge moment — it should look like it could be a window *inside* the portfolio, so the transition from "3D scene" to "Y2K desktop OS" doesn't feel like two unrelated projects stapled together.
 
 **Reuse directly from the portfolio:**
-- Fonts: `Press Start 2P` (labels/prompt chrome) and `Share Tech Mono` (input text, metadata) — same constants pattern as `../mainRepo/src/app/App.tsx`'s `PX`/`MONO`
-- Color language: dark terminal background, single accent color for the cursor/prompt (cyan reads as the most "Y2K CRT" choice, and happens to match the portfolio's default Y2K palette accent `#00b9be` — use that unless there's a reason not to)
+- Fonts: `Press Start 2P` (labels/prompt chrome) and `Space Mono` (input text, metadata) — see ARCHITECTURE.md "Design system". (Originally Share Tech Mono, to match `../mainRepo`'s `PX`/`MONO`; unified on Space Mono.)
+- Color language: ink on paper from the active theme (white-on-black standard; cyan, green, amber, pink and e-ink are opt-in) — never a hard-coded hex
 - Retro UI tells: blinking cursor, monospace echo, ALL-CAPS prompt labels (`ENTER PASSWORD:`, `ACCESS DENIED`) — same "metadata-forward, technical but earnest" tone as `../mainRepo/RETRO_GUIDELINES.md`'s content-tone section
 
 **Character display:** asterisks (`****`) reads more "password prompt," plain echoed text reads more "terminal command." Recommend asterisks — most visitors will read "password" faster than parsing a terminal-echo convention, and BIOS/login-screen prompts (the most common 2000s reference point) mask input.

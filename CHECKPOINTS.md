@@ -38,7 +38,7 @@ Work through these in order. Each one should run (`pnpm dev`) and visibly demons
 **Goal:** once the camera arrives, a password prompt appears glued to the monitor's screen — not a full-page overlay — styled like a retro terminal.
 
 - [x] Prompt appears after the camera flight completes
-- [x] Styled with the portfolio's font stack (`Press Start 2P` / `Share Tech Mono`) — already loaded via `src/index.css`'s Google Fonts `@import`
+- [x] Styled with the portfolio's font stack (`Press Start 2P` / `Share Tech Mono`) — later unified on Press Start 2P + Space Mono, self-hosted (see ARCHITECTURE.md "Design system")
 - [x] Controlled input, masked characters, "ACCESS DENIED" shake on wrong password, retry with no lockout
 - [x] Anchored to the screen-plane via drei's `<Html>` (billboard mode, not `transform` — `<Html transform>` produced broken off-screen CSS matrices in testing; billboard is fine since the locked-POV camera always looks ~straight at the screen by design). Verified visually: terminal renders centered inside the monitor's screen.
 - [x] Visible "HINT: 1234" line + an explicit CONFIRM button alongside Enter-to-submit
