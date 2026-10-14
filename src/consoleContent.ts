@@ -1,4 +1,5 @@
 import type { Lang } from "./i18n";
+import type { StackGroup } from "./projects";
 
 export type Line = string | { text: string; href: string };
 
@@ -13,7 +14,7 @@ export interface ConsoleStrings {
   boot: string;
   menu: string;
   to3d: string;
-  holo: { open: string; hint: string };
+  holo: { open: string; hint: string; stack: Record<StackGroup, string> };
   lang: string;
   keys: string;
   footer: string;
@@ -32,7 +33,7 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
     to3d: "[ ENTER 3D SCENE -> ]",
     lang: "LANG",
     keys: "KEYS: 1-6 SECTION · L LANGUAGE · G 3D WORLD",
-    holo: { open: "OPEN ->", hint: "TILT IT · TAP TO FLIP" },
+    holo: { open: "OPEN ->", hint: "TILT IT · TAP TO FLIP", stack: { frontend: "FRONTEND", backend: "BACKEND", design: "DESIGN", tools: "TOOLS" } },
     footer: "alejandrosancho v0.9",
     sections: [
       {
@@ -127,7 +128,7 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
     to3d: "[ ENTRAR A LA ESCENA 3D -> ]",
     lang: "IDIOMA",
     keys: "TECLAS: 1-6 SECCIÓN · L IDIOMA · G MUNDO 3D",
-    holo: { open: "ABRIR ->", hint: "INCLÍNALA · TOCA PARA VOLTEAR" },
+    holo: { open: "ABRIR ->", hint: "INCLÍNALA · TOCA PARA VOLTEAR", stack: { frontend: "FRONTEND", backend: "BACKEND", design: "DISEÑO", tools: "HERRAMIENTAS" } },
     footer: "alejandrosancho v0.9",
     sections: [
       {
@@ -222,7 +223,7 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
     to3d: "[ ENTRAR A L'ESCENA 3D -> ]",
     lang: "IDIOMA",
     keys: "TECLES: 1-6 SECCIÓ · L IDIOMA · G MÓN 3D",
-    holo: { open: "OBRIR ->", hint: "INCLINA-LA · TOCA PER GIRAR" },
+    holo: { open: "OBRIR ->", hint: "INCLINA-LA · TOCA PER GIRAR", stack: { frontend: "FRONTEND", backend: "BACKEND", design: "DISSENY", tools: "EINES" } },
     footer: "alejandrosancho v0.9",
     sections: [
       {

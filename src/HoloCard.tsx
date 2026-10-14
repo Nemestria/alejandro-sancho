@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import "./holo.css";
 import { useTheme } from "./theme";
 import type { Lang } from "./i18n";
-import type { Project } from "./projects";
+import type { Project, StackGroup } from "./projects";
 
 // A project as a hologram card, in pure CSS 3D (no WebGL, so it costs a phone
 // almost nothing and the text stays crisp and selectable).
@@ -121,7 +121,10 @@ function DitherArt({ src, ink }: { src: string; ink: string }) {
 export interface HoloUi {
   open: string;
   hint: string;
+  stack: Record<StackGroup, string>;
 }
+
+const GROUP_ORDER: StackGroup[] = ["frontend", "backend", "design", "tools"];
 
 export default function HoloCard({
   project, lang, ui, index,
@@ -276,9 +279,22 @@ export default function HoloCard({
 
           <div className="holo__face holo__back">
             <div className="holo__title">{project.title}</div>
-            <div className="holo__desc">{project.desc[lang]}</div>
-            <div className="holo__tags">
-              {project.tags.map((t) => <span key={t} className="holo__tag">{t}</span>)}
+            <div className="holo__scroll">
+              <div className="holo__desc">{project.desc[lang]}</div>
+              {project.stack ? (
+                GROUP_ORDER.filter((g) => project.stack?.[g]?.length).map((g) => (
+                  <div key={g} className="holo__group">
+                    <div className="holo__label">{ui.stack[g]}</div>
+                    <div className="holo__tags">
+                      {project.stack![g]!.map((t) => <span key={t} className="holo__tag">{t}</span>)}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="holo__tags">
+                  {project.tags.map((t) => <span key={t} className="holo__tag">{t}</span>)}
+                </div>
+              )}
             </div>
             <div className="holo__host">{host}</div>
             <a className="ui-btn" href={project.url} target="_blank" rel="noopener noreferrer">

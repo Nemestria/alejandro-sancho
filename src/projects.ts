@@ -6,12 +6,17 @@ import type { Lang } from "./i18n";
 //
 // Descriptions are written from what each site says about itself — DRAFT until
 // Alejandro words them himself.
+/** Stack groups shown on the card's back. Labels are translated in consoleContent (holo.stack). */
+export type StackGroup = "frontend" | "backend" | "design" | "tools";
+
 export interface Project {
   id: string;
   title: string;
   url: string;
   img: string;
+  /** Fallback chips when `stack` is not filled in yet. */
   tags: string[];
+  stack?: Partial<Record<StackGroup, string[]>>;
   kind: Record<Lang, string>;
   desc: Record<Lang, string>;
 }
@@ -23,6 +28,7 @@ export const PROJECTS: Project[] = [
     url: "https://www.targetgrass.com/",
     img: "/projects/targetgrass.jpg",
     tags: ["WEB", "B2B", "CATALOG"],
+    stack: { frontend: ["HTML", "CSS", "JavaScript", "Astro"] },
     kind: { en: "WEB / B2B", es: "WEB / B2B", ca: "WEB / B2B" },
     desc: {
       en: "B2B site for an artificial-turf supplier that sells only to installers: product catalogue, sample requests and permanent stock.",
@@ -49,6 +55,11 @@ export const PROJECTS: Project[] = [
     url: "https://www.bandamas.es/",
     img: "/projects/bandamas.jpg",
     tags: ["WEB", "CATALOG", "BLOG"],
+    stack: {
+      frontend: ["Astro 4.4 (SSG)", "Tailwind CSS", "TypeScript", "GSAP"],
+      backend: ["Cloudflare Workers", "Hono", "Cloudflare D1", "JWT + bcrypt", "Resend"],
+      design: ["Figma", "Design System with Claude"],
+    },
     kind: { en: "WEB / SHOP", es: "WEB / TIENDA", ca: "WEB / BOTIGA" },
     desc: {
       en: "Tools and accessories for professional installers: catalogue, nationwide shipping, tutorials and a blog.",
@@ -62,6 +73,8 @@ export const PROJECTS: Project[] = [
     url: "https://3d-lab.vercel.app/",
     img: "/projects/3d-lab.jpg",
     tags: ["THREE.JS", "R3F", "GLSL"],
+    // From the lab's own page (modules: vanilla three.js, R3F + drei, shaders).
+    stack: { frontend: ["three.js", "React Three Fiber", "drei", "GLSL"] },
     kind: { en: "LAB / CODE", es: "LAB / CÓDIGO", ca: "LAB / CODI" },
     desc: {
       en: "My lab: twelve three.js projects, from a first spinning cube to custom GLSL. Built in the open.",
@@ -75,6 +88,7 @@ export const PROJECTS: Project[] = [
     url: "https://www.artstation.com/vrtigo",
     img: "/projects/artstation.png",
     tags: ["3D ART", "UE5", "PROPS & ENV"],
+    stack: { tools: ["Unreal Engine 5", "Blender", "3ds Max", "RizomUV", "ZBrush", "Substance Designer"] },
     kind: { en: "3D ART", es: "ARTE 3D", ca: "ART 3D" },
     desc: {
       en: "My 3D environment art: game-ready props and environments, built for Unreal Engine 5.",

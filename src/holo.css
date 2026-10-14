@@ -43,7 +43,7 @@
    turns edge-on, instead of vanishing like a sheet of paper. */
 .holo__plate {
   border: 1px solid var(--ink-faint);
-  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  background: color-mix(in srgb, var(--ink) 2%, transparent);
   transform: translateZ(var(--z));
 }
 
@@ -58,10 +58,10 @@
   border: var(--line-heavy) solid var(--ink);
   /* The bloom: a soft halo outside, a faint wash inside. */
   box-shadow:
-    0 0 10px color-mix(in srgb, var(--ink) 55%, transparent),
-    0 0 28px color-mix(in srgb, var(--ink) 28%, transparent),
-    inset 0 0 18px color-mix(in srgb, var(--ink) 20%, transparent);
-  text-shadow: 0 0 6px color-mix(in srgb, var(--ink) 65%, transparent);
+    0 0 8px color-mix(in srgb, var(--ink) 20%, transparent),
+    0 0 22px color-mix(in srgb, var(--ink) 9%, transparent),
+    inset 0 0 14px color-mix(in srgb, var(--ink) 7%, transparent);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--ink) 30%, transparent);
   animation: holo-flicker 4.3s steps(1) var(--flicker-delay, 0s) infinite;
 }
 .holo__front { transform: translateZ(var(--depth)); }
@@ -76,9 +76,9 @@
   pointer-events: none;
   background: radial-gradient(
     circle at var(--gx, 50%) var(--gy, 40%),
-    color-mix(in srgb, var(--ink) 32%, transparent) 0%,
-    color-mix(in srgb, var(--ink) 10%, transparent) 30%,
-    transparent 60%
+    color-mix(in srgb, var(--ink) 9%, transparent) 0%,
+    color-mix(in srgb, var(--ink) 3%, transparent) 28%,
+    transparent 52%
   );
 }
 
@@ -110,7 +110,7 @@
   image-rendering: pixelated;
   /* Halo around the dithered pixels. Safe here: this canvas is a leaf, not a
      preserve-3d parent. */
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--ink) 80%, transparent));
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--ink) 35%, transparent));
   animation: holo-jitter 7s steps(1) var(--flicker-delay, 0s) infinite;
 }
 
@@ -138,8 +138,19 @@
   font-size: 13px;
   line-height: 1.5;
 }
-.holo__back .holo__desc { flex: 1 1 auto; overflow: auto; }
-.holo__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.holo__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-faint) transparent;
+}
+.holo__group { display: flex; flex-direction: column; gap: 4px; }
+.holo__label { font-size: 10px; letter-spacing: 2px; color: var(--ink-dim); }
+.holo__tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .holo__tag {
   font-size: 10px;
   letter-spacing: 1px;
@@ -155,11 +166,11 @@
   border-radius: 50%;
   background: radial-gradient(
     ellipse at center,
-    color-mix(in srgb, var(--ink) 70%, transparent) 0%,
-    color-mix(in srgb, var(--ink) 25%, transparent) 45%,
+    color-mix(in srgb, var(--ink) 30%, transparent) 0%,
+    color-mix(in srgb, var(--ink) 10%, transparent) 45%,
     transparent 72%
   );
-  box-shadow: 0 0 18px color-mix(in srgb, var(--ink) 45%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--ink) 15%, transparent);
 }
 
 .holo__hint {
