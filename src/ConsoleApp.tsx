@@ -129,6 +129,16 @@ export default function ConsoleApp({ lang, onLang, onSwitch, isMobile }: Props) 
         @media (min-width: 820px) { .asc .body { grid-template-columns: 240px 1fr !important; } }
         .asc-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:40px 20px; padding:12px 0 4px; }
         .asc-cards > .holo { scroll-snap-align:center; scroll-margin-top:12px; }
+        .asc-set { display:grid; gap:10px; margin-bottom:20px; }
+        .asc-lang { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border:var(--line-heavy) solid var(--ink); }
+        .asc-lang button { min-height:52px; padding:0 2px; border:0; cursor:pointer; background:var(--paper); color:var(--ink);
+          font-family:var(--font-body); font-weight:700; font-size:13px; letter-spacing:0; }
+        .asc-lang button + button { border-left:var(--line-heavy) solid var(--ink); }
+        .asc-lang button[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+        .asc-set__row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.4fr); gap:10px; align-items:stretch; }
+        .asc-set__row .ui-btn { width:100%; }
+        .asc-theme { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+        .asc-theme .ui-swatch { width:100%; height:100%; min-height:40px; }
         .asc-tabs { position:fixed; left:0; right:0; bottom:0; z-index:15; display:flex;
           padding:8px 8px calc(8px + env(safe-area-inset-bottom)); gap:6px;
           background:var(--paper); border-top:var(--line-heavy) solid var(--ink); }
@@ -156,18 +166,42 @@ export default function ConsoleApp({ lang, onLang, onSwitch, isMobile }: Props) 
           {c.tagline}
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 20 }}>
-          {!isMobile && <Button onClick={onSwitch}>{c.to3d}</Button>}
-          <span style={{ marginLeft: isMobile ? 0 : "auto", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-            {LANGUAGES.map((l) => (
-              <Button key={l.code} active={l.code === lang} onClick={() => onLang(l.code)}>
-                {l.code.toUpperCase()}
-              </Button>
-            ))}
-            <Button active={fx} onClick={toggleFx}>CRT {fx ? "ON" : "OFF"}</Button>
-            <ThemePicker />
-          </span>
-        </div>
+        {isMobile ? (
+          // Phones: big, full-width, thumb-sized controls. A segmented language
+          // switch (full names, 3 equal cells) over a CRT toggle + a 3x2 swatch
+          // grid. Nothing is sized in px that can overflow a 320px screen.
+          <div className="asc-set" role="group" aria-label="Settings">
+            <div className="asc-lang" role="group" aria-label={c.lang}>
+              {LANGUAGES.map((l) => (
+                <button
+                  key={l.code}
+                  lang={l.code}
+                  aria-pressed={l.code === lang}
+                  onClick={() => onLang(l.code)}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <div className="asc-set__row">
+              <Button active={fx} onClick={toggleFx} style={{ minHeight: 52 }}>CRT {fx ? "ON" : "OFF"}</Button>
+              <ThemePicker className="asc-theme" />
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 20 }}>
+            <Button onClick={onSwitch}>{c.to3d}</Button>
+            <span style={{ marginLeft: "auto", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              {LANGUAGES.map((l) => (
+                <Button key={l.code} active={l.code === lang} onClick={() => onLang(l.code)}>
+                  {l.code.toUpperCase()}
+                </Button>
+              ))}
+              <Button active={fx} onClick={toggleFx}>CRT {fx ? "ON" : "OFF"}</Button>
+              <ThemePicker />
+            </span>
+          </div>
+        )}
 
         <div
           className="body"

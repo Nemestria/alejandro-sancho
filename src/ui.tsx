@@ -26,10 +26,10 @@ export function Panel({
 }
 
 /** Row of colour swatches: the standard white theme plus five alternates. */
-export function ThemePicker({ label = "THEME" }: { label?: string }) {
+export function ThemePicker({ label = "THEME", className = "" }: { label?: string; className?: string }) {
   const theme = useTheme();
   return (
-    <span role="group" aria-label={label} style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+    <span role="group" aria-label={label} className={`ui-themes ${className}`}>
       {THEMES.map((t) => (
         <button
           key={t.id}

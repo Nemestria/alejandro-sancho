@@ -53,10 +53,12 @@
 .ui-panel__title {
   background: var(--ink);
   color: var(--paper);
-  font-family: var(--font-display);
-  font-size: 11px;
+  /* Body font: titles are translated, and Press Start 2P mangles accents (SOBRE MÍ). */
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 13px;
   letter-spacing: 2px;
-  padding: 8px 12px;
+  padding: 6px 12px;
 }
 
 /* Selectable list row (console nav). */
@@ -85,3 +87,5 @@
   place-items: center;
 }
 .ui-swatch[aria-pressed="true"] { outline: var(--line) solid var(--ink); outline-offset: 2px; }
+
+.ui-themes { display: inline-flex; gap: 8px; align-items: center; }
