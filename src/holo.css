@@ -13,9 +13,8 @@
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
-  cursor: grab;
+  cursor: pointer;
 }
-.holo:active { cursor: grabbing; }
 .holo:focus-visible { outline: var(--line) dashed var(--ink); outline-offset: 8px; }
 
 .holo__scene {
@@ -63,10 +62,25 @@
     0 0 28px color-mix(in srgb, var(--ink) 28%, transparent),
     inset 0 0 18px color-mix(in srgb, var(--ink) 20%, transparent);
   text-shadow: 0 0 6px color-mix(in srgb, var(--ink) 65%, transparent);
-  animation: holo-flicker 6s steps(1) infinite;
+  animation: holo-flicker 4.3s steps(1) var(--flicker-delay, 0s) infinite;
 }
 .holo__front { transform: translateZ(var(--depth)); }
 .holo__back  { transform: rotateY(180deg) translateZ(var(--depth)); }
+
+/* Moving glare: follows the pointer (--gx/--gy set by HoloCard). */
+.holo__face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--gx, 50%) var(--gy, 40%),
+    color-mix(in srgb, var(--ink) 32%, transparent) 0%,
+    color-mix(in srgb, var(--ink) 10%, transparent) 30%,
+    transparent 60%
+  );
+}
 
 /* Scanlines drifting down the hologram. */
 .holo__face::after {
@@ -97,6 +111,7 @@
   /* Halo around the dithered pixels. Safe here: this canvas is a leaf, not a
      preserve-3d parent. */
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--ink) 80%, transparent));
+  animation: holo-jitter 7s steps(1) var(--flicker-delay, 0s) infinite;
 }
 
 .holo__meta {
@@ -157,14 +172,31 @@
 @keyframes holo-scan {
   to { background-position: 0 6px; }
 }
+/* Irregular, a bit nervous: several short dips and one deep one per cycle. */
 @keyframes holo-flicker {
   0%, 100% { opacity: 1; }
-  93% { opacity: 0.86; }
-  94% { opacity: 1; }
-  96% { opacity: 0.92; }
-  97% { opacity: 1; }
+  12% { opacity: 0.82; }
+  13% { opacity: 1; }
+  38% { opacity: 0.9; }
+  39% { opacity: 0.7; }
+  40% { opacity: 1; }
+  41% { opacity: 0.88; }
+  42% { opacity: 1; }
+  71% { opacity: 0.8; }
+  72% { opacity: 1; }
+  88% { opacity: 0.55; }
+  89% { opacity: 1; }
+}
+/* A one-frame horizontal tear on the picture. */
+@keyframes holo-jitter {
+  0%, 100% { transform: none; }
+  38.5% { transform: translateX(-3px); }
+  39.5% { transform: translateX(2px) skewX(-2deg); }
+  40.5% { transform: none; }
+  88.2% { transform: translateX(3px); }
+  88.8% { transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .holo__face, .holo__face::after { animation: none; }
+  .holo__face, .holo__face::after, .holo__art canvas { animation: none; }
 }

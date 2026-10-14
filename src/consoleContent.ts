@@ -32,7 +32,7 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
     to3d: "[ ENTER 3D SCENE -> ]",
     lang: "LANG",
     keys: "KEYS: 1-6 SECTION · L LANGUAGE · G 3D WORLD",
-    holo: { open: "OPEN ->", hint: "DRAG TO ROTATE · TAP TO FLIP" },
+    holo: { open: "OPEN ->", hint: "TILT IT · TAP TO FLIP" },
     footer: "alejandrosancho v0.9",
     sections: [
       {
@@ -127,7 +127,7 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
     to3d: "[ ENTRAR A LA ESCENA 3D -> ]",
     lang: "IDIOMA",
     keys: "TECLAS: 1-6 SECCIÓN · L IDIOMA · G MUNDO 3D",
-    holo: { open: "ABRIR ->", hint: "ARRASTRA PARA ROTAR · TOCA PARA VOLTEAR" },
+    holo: { open: "ABRIR ->", hint: "INCLÍNALA · TOCA PARA VOLTEAR" },
     footer: "alejandrosancho v0.9",
     sections: [
       {
@@ -222,7 +222,7 @@ export const consoleContent: Record<Lang, ConsoleStrings> = {
     to3d: "[ ENTRAR A L'ESCENA 3D -> ]",
     lang: "IDIOMA",
     keys: "TECLES: 1-6 SECCIÓ · L IDIOMA · G MÓN 3D",
-    holo: { open: "OBRIR ->", hint: "ARROSSEGA PER ROTAR · TOCA PER GIRAR" },
+    holo: { open: "OBRIR ->", hint: "INCLINA-LA · TOCA PER GIRAR" },
     footer: "alejandrosancho v0.9",
     sections: [
       {

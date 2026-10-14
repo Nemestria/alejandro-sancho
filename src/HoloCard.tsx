@@ -4,22 +4,24 @@ import { useTheme } from "./theme";
 import type { Lang } from "./i18n";
 import type { Project } from "./projects";
 
-// A project as a spinning hologram card, in pure CSS 3D (no WebGL, so it costs
-// a phone almost nothing and the text stays crisp and selectable).
+// A project as a hologram card, in pure CSS 3D (no WebGL, so it costs a phone
+// almost nothing and the text stays crisp and selectable).
 //
 //  - Volume: a front face, a back face and three glass plates between them, so
-//    the card has thickness when it turns edge-on.
+//    the card has thickness when it tilts.
 //  - Bloom: layered box-/text-shadow halos (theme ink), plus a drop-shadow on
 //    the dithered thumbnail.
-//  - Motion: it spins on its own but dwells near the faces (slow when facing
-//    you, fast when edge-on) so it is readable most of the time. Drag/swipe
-//    horizontally to spin it with inertia; tap (or Enter/Space) to flip it;
-//    vertical swipes still scroll the page (touch-action: pan-y).
-//  - Only the visible cards animate, and prefers-reduced-motion = no auto-spin.
+//  - Motion: it does NOT spin. It tilts toward the pointer (hover on desktop,
+//    finger position while touching) with a moving glare, drifts gently when
+//    idle, and flickers. Tap / click / Enter flips it to the back (description
+//    + link). Vertical swipes still scroll the page (touch-action: pan-y).
+//  - Only on-screen cards animate; prefers-reduced-motion = no drift/flicker.
 
-const SPIN_DEG_PER_S = 26;
-const DWELL = 0.1; // fraction of SPIN speed when a face is toward the viewer
-const DRAG_DEG_PER_PX = 0.7;
+const MAX_TILT_Y = 18; // deg, left/right
+const MAX_TILT_X = 12; // deg, up/down
+const FOLLOW = 9; // damping: higher = snappier
+const DRIFT_Y = 3;
+const DRIFT_X = 2;
 const TAP_PX = 6;
 
 // ---- 1-bit dithered thumbnail ---------------------------------------------
@@ -129,14 +131,16 @@ export default function HoloCard({
   const cardRef = useRef<HTMLDivElement>(null);
   // Animation state lives in a ref: it changes every frame and must not re-render.
   const s = useRef({
-    angle: (index * 37) % 360, // desync the cards
-    vel: 0,
-    drag: false,
-    lastX: 0,
-    lastT: 0,
+    flip: 0, // 0 = front, 180 = back; eased toward `flipTarget`
+    flipTarget: 0,
+    tx: 0, ty: 0, // current tilt (deg)
+    gx: 50, gy: 50, // current glare position (%)
+    px: 0.5, py: 0.5, // pointer, 0..1 across the card
+    active: false, // pointer is steering the tilt
+    down: false,
+    downX: 0,
+    downY: 0,
     moved: 0,
-    target: null as number | null,
-    pauseUntil: 0,
     visible: false,
   });
 
@@ -145,7 +149,6 @@ export default function HoloCard({
     const card = cardRef.current!;
     const st = s.current;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) st.angle = 0;
 
     const io = new IntersectionObserver(([e]) => { st.visible = e.isIntersecting; }, { threshold: 0.05 });
     io.observe(scene);
@@ -157,63 +160,81 @@ export default function HoloCard({
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
       if (!st.visible) return;
+      const k = Math.min(1, dt * FOLLOW);
 
-      if (st.target !== null) {
-        const d = st.target - st.angle;
-        st.angle += d * Math.min(1, dt * 8);
-        if (Math.abs(d) < 0.3) { st.angle = st.target; st.target = null; }
-      } else if (st.drag) {
-        // follows the pointer; nothing to integrate
-      } else if (Math.abs(st.vel) > 1) {
-        st.angle += st.vel * dt;
-        st.vel *= Math.pow(0.05, dt); // inertia decays in about a second
-      } else if (!reduce && now > st.pauseUntil) {
-        const r = Math.sin((st.angle * Math.PI) / 180);
-        st.angle += SPIN_DEG_PER_S * (DWELL + (1 - DWELL) * r * r) * dt;
+      // Where the tilt wants to be: toward the pointer, else a slow drift.
+      let wantY: number;
+      let wantX: number;
+      let wantGx: number;
+      let wantGy: number;
+      if (st.active) {
+        wantY = (st.px - 0.5) * 2 * MAX_TILT_Y;
+        wantX = -(st.py - 0.5) * 2 * MAX_TILT_X;
+        wantGx = st.px * 100;
+        wantGy = st.py * 100;
+      } else if (reduce) {
+        wantY = wantX = 0;
+        wantGx = wantGy = 50;
+      } else {
+        const t = now / 1000 + index * 1.7;
+        wantY = Math.sin(t * 0.8) * DRIFT_Y;
+        wantX = Math.cos(t * 0.6) * DRIFT_X;
+        wantGx = 50 + Math.sin(t * 0.8) * 30;
+        wantGy = 40 + Math.cos(t * 0.6) * 25;
       }
-      card.style.transform = `rotateY(${st.angle.toFixed(2)}deg)`;
+      st.ty += (wantY - st.ty) * k;
+      st.tx += (wantX - st.tx) * k;
+      st.gx += (wantGx - st.gx) * k;
+      st.gy += (wantGy - st.gy) * k;
+      st.flip += (st.flipTarget - st.flip) * Math.min(1, dt * 7);
+
+      card.style.transform = `rotateX(${st.tx.toFixed(2)}deg) rotateY(${(st.ty + st.flip).toFixed(2)}deg)`;
+      scene.style.setProperty("--gx", `${st.gx.toFixed(1)}%`);
+      scene.style.setProperty("--gy", `${st.gy.toFixed(1)}%`);
     };
     raf = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(raf); io.disconnect(); };
-  }, []);
+  }, [index]);
 
   const flip = () => {
     const st = s.current;
-    st.vel = 0;
-    st.target = (Math.round(st.angle / 180) + 1) * 180;
-    st.pauseUntil = performance.now() + 9000;
+    st.flipTarget = st.flipTarget === 0 ? 180 : 0;
   };
 
+  const track = (e: React.PointerEvent) => {
+    const st = s.current;
+    const r = sceneRef.current!.getBoundingClientRect();
+    st.px = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    st.py = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+  };
+
+  const onPointerEnter = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") { s.current.active = true; track(e); }
+  };
+  const onPointerLeave = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") s.current.active = false;
+  };
   const onPointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest("a")) return; // let the link work
     const st = s.current;
-    st.drag = true;
-    st.target = null;
-    st.vel = 0;
-    st.lastX = e.clientX;
-    st.lastT = performance.now();
+    st.down = true;
+    st.active = true; // a touching finger steers too
+    st.downX = e.clientX;
+    st.downY = e.clientY;
     st.moved = 0;
-    sceneRef.current!.setPointerCapture(e.pointerId);
+    track(e);
   };
   const onPointerMove = (e: React.PointerEvent) => {
     const st = s.current;
-    if (!st.drag) return;
-    const now = performance.now();
-    const dx = e.clientX - st.lastX;
-    st.angle += dx * DRAG_DEG_PER_PX;
-    st.moved += Math.abs(dx);
-    const dt = Math.max(1, now - st.lastT) / 1000;
-    st.vel = (dx * DRAG_DEG_PER_PX) / dt;
-    st.lastX = e.clientX;
-    st.lastT = now;
+    if (e.pointerType === "mouse" || st.down) track(e);
+    if (st.down) st.moved = Math.max(st.moved, Math.hypot(e.clientX - st.downX, e.clientY - st.downY));
   };
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
     const st = s.current;
-    if (!st.drag) return;
-    st.drag = false;
-    if (st.moved < TAP_PX) { flip(); return; }
-    st.vel = Math.max(-600, Math.min(600, st.vel));
-    st.pauseUntil = performance.now() + 3500;
+    if (!st.down) return;
+    st.down = false;
+    if (e.pointerType !== "mouse") st.active = false; // finger lifted: ease back
+    if (st.moved < TAP_PX && e.type === "pointerup") flip();
   };
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
@@ -232,6 +253,9 @@ export default function HoloCard({
       <div
         ref={sceneRef}
         className="holo__scene"
+        style={{ "--flicker-delay": `${-(index * 1.37).toFixed(2)}s` } as React.CSSProperties}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
